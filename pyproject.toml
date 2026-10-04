@@ -11,6 +11,7 @@ dependencies = [
     "more-itertools>=11.1.0",
     "mwparserfromhell>=0.7.2",
     "pytest>=9.1.1",
+    "pytest-mock>=3.16.0",
     "requests>=2.34.2",
 ]
 
