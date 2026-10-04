@@ -140,8 +140,8 @@ def process_date_str(date_str: str) -> str:
 
     This attempts to improve dparser fuzzy parsing accuracy.
     """
-    regex_start = r"^\(\s*(beginning|ending|resuming|starting|begins?|ends?|resumes?|starts?)\s*"
-    regex_end = r"\s*\)\s*,?$"
+    regex_start = r"^\(?\s*(beginning|ending|resuming|starting|begins?|ends?|resumes?|starts?)\s*"
+    regex_end = r"\s*\)?\s*,?$"
     processed_date_str = re.sub(regex_start, "", date_str.strip(), flags=re.IGNORECASE)
     processed_date_str = re.sub(regex_end, "", processed_date_str, flags=re.IGNORECASE)
     return processed_date_str
