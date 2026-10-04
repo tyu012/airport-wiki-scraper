@@ -3,45 +3,18 @@ import dateutil.parser as dparser
 import datetime as dt
 from more_itertools import peekable
 import requests
-from airroute import AirRoute
-
-API_URL = "https://en.wikipedia.org/w/api.php"
-
-# Credit: https://mwparserfromhell.readthedocs.io/en/latest/usage.html
-def fetch(title: str):
-    params = {
-            "action": "query",
-            "prop": "revisions",
-            "rvprop": "content",
-            "rvslots": "main",
-            "rvlimit": 1,
-            "titles": title,
-            "format": "json",
-            "formatversion": "2",
-        }
-    headers = {
-        "User-Agent": "AirWikiExplorer/0.1 (https://github.com/tyu012; yuyu.tim@gmail.com)"
-    }
-    req = requests.get(API_URL, headers=headers, params=params)
-    res = req.json()
-    revision = res["query"]["pages"][0]["revisions"][0]
-    text = revision["slots"]["main"]["content"]
-    return text
+from airport_wiki_scraper.airroute import AirRoute
+from airport_wiki_scraper.scraper import parse
+import re
 
 
-def parse(title: str):
-    text = fetch(title)
-    return mwp.parse(text)
-
-
-def get_apdl(title: str) -> tuple[mwp.nodes.Template, mwp.nodes.Template | None]:
+def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template, mwp.nodes.Template | None]:
     """
-    Returns a tuple containing the airport destination lists of the titled Wikipedia article.
-    The first element is the passenger list.
-    The second element is the cargo list if exists, otherwise None.
+    Returns a tuple containing the airport destination lists of the given Wikipedia article.
+    The first return element is the passenger list.
+    The second return element is the cargo list if exists, otherwise None.
     Assume that the article contains at least one airport destination list.
     """
-    page = parse(title)
     regex = r"Airport destination list|Airport-dest-list" # includes all redirects
     destination_lists = page.filter_templates(matches=regex)
     """
@@ -149,14 +122,29 @@ def parse_date(
     """
     date = None
     try:
-        date = dparser.parse(current_node_text, fuzzy=True)
+        processed_text = process_date_str(current_node_text)
+        date = dparser.parse(processed_text, fuzzy=True)
     except:
         try:
             date = dparser.parse(filtered_dests.peek().lower(), fuzzy=True)
             filtered_dests.__next__()
         except:
-            print("Unable to find expected date")
+            print(f"Unable to find expected date for \"{filtered_dests.peek()}\". Note: Suspended flights may not have resume date.")
     return date
+
+
+def process_date_str(date_str: str) -> str:
+    """
+    Attempts to remove extraneous text from the ends of a string containing a date, in the format of
+    (begins January 1, 2026), (ends ...), (resumes ...), etc.
+
+    This attempts to improve dparser fuzzy parsing accuracy.
+    """
+    regex_start = r"^\(\s*(beginning|ending|resuming|starting|begins?|ends?|resumes?|starts?)\s*"
+    regex_end = r"\s*\)\s*,?$"
+    processed_date_str = re.sub(regex_start, "", date_str.strip(), flags=re.IGNORECASE)
+    processed_date_str = re.sub(regex_end, "", processed_date_str, flags=re.IGNORECASE)
+    return processed_date_str
 
 
 def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
