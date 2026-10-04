@@ -4,6 +4,7 @@ import mwparserfromhell as mwp
 from airport_wiki_scraper.airroute import AirRoute
 from datetime import datetime
 import dateutil.parser as dparser
+import pytest
 
 # Below examples adapted from:
 # Template:Airport_destination_list
@@ -118,23 +119,21 @@ def test_extract_apdl_4col():
     assert results == example_b_solutions, "result contents equal and match order"
 
 
-def test_process_date_str():
-    dates = [
-        ["(begins October 1, 2025)", "October 1, 2025", datetime(2025, 10, 1)],
-        ["(begins 1 October 2025)", "1 October 2025", datetime(2025, 10, 1)],
-        ["(begins 2025 October 1)", "2025 October 1", datetime(2025, 10, 1)],
-        ["(   begins 2025 October 1  )", "2025 October 1", datetime(2025, 10, 1)],
-        ["begins March 15, 2019", "March 15, 2019", datetime(2019, 3, 15)],
-        ["(begins March 15, 2019)", "March 15, 2019", datetime(2019, 3, 15)],
-        ["(ends April 5, 2028)", "April 5, 2028", datetime(2028, 4, 5)],
-        ["(resumes June 29, 2028)", "June 29, 2028", datetime(2028, 6, 29)],
-        ["(beginning March 15, 2019)", "March 15, 2019", datetime(2019, 3, 15)],
-        ["(ending April 5, 2028)", "April 5, 2028", datetime(2028, 4, 5)],
-        ["(resuming June 29, 2028)", "June 29, 2028", datetime(2028, 6, 29)],
-    ]
-
-    for val in dates:
-        processed = process_date_str(val[0])
-        assert processed == val[1], f"'{val[0]}' correctly processed"
-        date = dparser.parse(processed, fuzzy=True)
-        assert date == val[2], f"date correctly parsed from '{val[0]}'"
+@pytest.mark.parametrize("input, exp_processed, exp_date", [
+    ("(begins October 1, 2025)", "October 1, 2025", datetime(2025, 10, 1)),
+    ("(begins 1 October 2025)", "1 October 2025", datetime(2025, 10, 1)),
+    ("(begins 2025 October 1)", "2025 October 1", datetime(2025, 10, 1)),
+    ("(   begins 2025 October 1  )", "2025 October 1", datetime(2025, 10, 1)),
+    ("begins March 15, 2019", "March 15, 2019", datetime(2019, 3, 15)),
+    ("(begins March 15, 2019)", "March 15, 2019", datetime(2019, 3, 15)),
+    ("(ends April 5, 2028)", "April 5, 2028", datetime(2028, 4, 5)),
+    ("(resumes June 29, 2028)", "June 29, 2028", datetime(2028, 6, 29)),
+    ("(beginning March 15, 2019)", "March 15, 2019", datetime(2019, 3, 15)),
+    ("(ending April 5, 2028)", "April 5, 2028", datetime(2028, 4, 5)),
+    ("(resuming June 29, 2028)", "June 29, 2028", datetime(2028, 6, 29)),
+])
+def test_process_date_str(input, exp_processed, exp_date):
+    processed = process_date_str(input)
+    assert processed == exp_processed, f"'{input}' correctly processed"
+    date = dparser.parse(processed, fuzzy=True)
+    assert date == exp_date, f"date correctly parsed from '{processed}'"
