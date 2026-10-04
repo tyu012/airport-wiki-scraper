@@ -8,6 +8,8 @@ from datetime import datetime
 # Template:Airport_destination_list
 # Wikipedia:WikiProject_Aviation/Style_guide/Layout_(Airports)
 
+# Tested using Wikipedia sandbox to ensure they are correctly rendered on Wikipedia
+
 ORIGIN = "MyAirport"
 
 example_a_2col = """{{Airport destination list
@@ -38,16 +40,16 @@ example_a_solutions = [
     # Seasonal charter flight, uses italics formatting for seasonal charter label
     AirRoute(ORIGIN, "Grand Bahama International Airport", "Oceanic Airlines", seasonal=True, charter=True),
 
-    # Test second airline
+    # Test second airline, seasonal and charter flags should be reset
     AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines"),
 
     # Seasonal flight, uses italics formatting for seasonal label
-    AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines")
+    AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
 ]
 
 example_b_3col = """{{Airport destination list
 |3rdcoltitle={{Abbr|Refs.|References}}|3rdcolunsortable=yes
-| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/>
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> |
 | [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]] | <ref>Ref 4</ref>
 }}"""
 example_b_3col_wt = parse(example_b_3col)
@@ -59,6 +61,16 @@ example_b_4col = """{{Airport destination list
 | [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]] | <ref>Ref 4</ref> |
 }}"""
 example_b_4col_wt = parse(example_b_4col)
+
+example_b_solutions = [
+    # Uses simpler test cases, to test handling of 2 and 3 columns
+    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
+    AirRoute(ORIGIN, "Los Angeles International Airport", "Oceanic Airlines"),
+    AirRoute(ORIGIN, "Sydney Airport", "Oceanic Airlines"),
+    AirRoute(ORIGIN, "Dulles International Airport", "Oceanic Airlines"),
+    AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines"),
+    AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
+]
 
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
@@ -87,7 +99,19 @@ def test_extract_apdl_2col():
     passenger, cargo = get_apdl(example_a_2col_wt)
     results = extract_apdl(passenger, ORIGIN)
     assert len(results) == len(example_a_solutions), "same number of results"
-    for i in range(len(results)):
-        print(f"results[{i}]:   {results[i]}")
-        print(f"solutions[{i}]: {example_a_solutions[i]}")
-        assert results[i] == example_a_solutions[i]
+    assert results == example_a_solutions, "result contents equal and match order"
+
+
+def test_extract_apdl_3col():
+    passenger, cargo = get_apdl(example_b_3col_wt)
+    results = extract_apdl(passenger, ORIGIN)
+    print(results)
+    assert len(results) == len(example_b_solutions), "same number of results"
+    assert results == example_b_solutions, "result contents equal and match order"
+
+
+def test_extract_apdl_4col():
+    passenger, cargo = get_apdl(example_b_4col_wt)
+    results = extract_apdl(passenger, ORIGIN)
+    assert len(results) == len(example_b_solutions), "same number of results"
+    assert results == example_b_solutions, "result contents equal and match order"
