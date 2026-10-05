@@ -14,6 +14,9 @@ def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template, mwp.nodes
     The first return element is the passenger list.
     The second return element is the cargo list if exists, otherwise None.
     Assume that the article contains at least one airport destination list.
+
+    NOTE: Cargo information on Wikipedia is generally incomplete compared to passenger information.
+    Therefore, the project is currently scoped towards scheduled passenger flights.
     """
     regex = r"Airport destination list|Airport-dest-list" # includes all redirects
     destination_lists = page.filter_templates(matches=regex)
