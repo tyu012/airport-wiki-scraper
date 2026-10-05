@@ -97,26 +97,16 @@ def test_get_apdl():
     assert len(cargo.params) == 2, "correct second template size"
 
 
-def test_extract_apdl_2col():
-    passenger, cargo = get_apdl(example_a_2col_wt)
+@pytest.mark.parametrize("input, expected, name", [
+    (example_a_2col_wt, example_a_solutions, "2 columns with multiple cases"),
+    (example_b_3col_wt, example_b_solutions, "3 columns"),
+    (example_b_4col_wt, example_b_solutions, "4 columns")
+])
+def test_extract_apdl(input, expected, name):
+    passenger, _ = get_apdl(input)
     results = extract_apdl(passenger, ORIGIN)
-    assert len(results) == len(example_a_solutions), "same number of results"
-    assert results == example_a_solutions, "result contents equal and match order"
-
-
-def test_extract_apdl_3col():
-    passenger, cargo = get_apdl(example_b_3col_wt)
-    results = extract_apdl(passenger, ORIGIN)
-    print(results)
-    assert len(results) == len(example_b_solutions), "same number of results"
-    assert results == example_b_solutions, "result contents equal and match order"
-
-
-def test_extract_apdl_4col():
-    passenger, cargo = get_apdl(example_b_4col_wt)
-    results = extract_apdl(passenger, ORIGIN)
-    assert len(results) == len(example_b_solutions), "same number of results"
-    assert results == example_b_solutions, "result contents equal and match order"
+    assert len(results) == len(expected), f"{name}: same number of results"
+    assert results == expected, f"{name}: contents equal"
 
 
 @pytest.mark.parametrize("input, exp_processed, exp_date", [
