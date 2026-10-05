@@ -74,6 +74,28 @@ example_b_solutions = [
     AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
 ]
 
+example_c_2col = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]] (all flights suspended until 24 October 2026)
+}}"""
+example_c_2col_wt = parse(example_c_2col)
+
+example_c_solutions = [
+    # Tests "all suspended"
+    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(ORIGIN, "Los Angeles International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(ORIGIN, "Sydney Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+]
+
+example_d_2col = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]] (suspended until October 24, 2026)
+}}"""
+example_d_2col_wt = parse(example_d_2col)
+
+example_d_solutions = [
+    # Tests "suspended until + date"
+    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+]
+
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
 ==Passenger==
@@ -100,7 +122,9 @@ def test_get_apdl():
 @pytest.mark.parametrize("input, expected, name", [
     (example_a_2col_wt, example_a_solutions, "2 columns with multiple cases"),
     (example_b_3col_wt, example_b_solutions, "3 columns"),
-    (example_b_4col_wt, example_b_solutions, "4 columns")
+    (example_b_4col_wt, example_b_solutions, "4 columns"),
+    (example_c_2col_wt, example_c_solutions, "test 'all suspended'"),
+    (example_d_2col_wt, example_d_solutions, "test 'suspended until'"),
 ])
 def test_extract_apdl(input, expected, name):
     passenger, _ = get_apdl(input)
@@ -121,6 +145,8 @@ def test_extract_apdl(input, expected, name):
     ("(beginning March 15, 2019)", "March 15, 2019", datetime(2019, 3, 15)),
     ("(ending April 5, 2028)", "April 5, 2028", datetime(2028, 4, 5)),
     ("(resuming June 29, 2028)", "June 29, 2028", datetime(2028, 6, 29)),
+    ("(all flights suspended until 24 October 2026)", "24 October 2026", datetime(2026, 10, 24)),
+    ("(suspended until 24 October 2026)", "24 October 2026", datetime(2026, 10, 24)),
 ])
 def test_process_date_str(input, exp_processed, exp_date):
     processed = process_date_str(input)
