@@ -4,7 +4,7 @@ import datetime as dt
 from more_itertools import peekable
 import requests
 from airport_wiki_scraper.airroute import AirRoute
-from airport_wiki_scraper.scraper import parse
+from airport_wiki_scraper.scraper import fetch_and_parse
 import re
 
 
