@@ -43,7 +43,7 @@ def test_rate_limit(mocker):
     mock_get = mocker.patch("requests.get")
     mock_get.return_value.status_code = 429
     mock_get.return_value.headers = { "Retry-After": "1" }
-    with pytest.raises(TooManyRequestsError):
+    with pytest.raises(TooManyRequestsError) as exc_info:
         fetch_multiple(["title1", "title2"])
 
 
@@ -78,10 +78,10 @@ def test_redirect(mocker):
         "query": {
             "pages": [
                 {
-                    "title": "redirect title",
+                    "title": "original title",
                     "revisions": [
                         {
-                            "content": "#REDIRECT [[title]]"
+                            "content": "content"
                         }
                     ]
                 },
@@ -89,4 +89,9 @@ def test_redirect(mocker):
         }
     } 
     result = fetch_multiple(["redirect title"])
-    assert result == [{ "title": "redirect title", "content": "#REDIRECT [[title]]" }]
+    assert result == [{ "title": "original title", "content": "content" }]
+
+
+def test_fetch_multiple_too_many(mocker):
+    with pytest.raises(AssertionError):
+        fetch_multiple([str(i) for i in range(51)])
