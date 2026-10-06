@@ -15,15 +15,19 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
     """
     Fetches up to 50 Wikipedia articles with titles given as a list via the MediaWiki Action API.
 
-    Returns wikitext content as a list of dicts, with keys "title" and "content".
-    Pages not found are represented by content as None.
+    Returns wikitext content as a list of dicts, with keys "title" and "content":
+    - "title" refers to the resolved title of the article, after redirects and normalization.
+    - "content" contains the wikitext of the respective articles.
+    - Pages not found are represented by "title" as given and "content" as None.
 
-    Raises TooManyRequestsError for rate limits reached (codes 429 or 503); exception contains
+    Raises `AssertionError` if more than 50 titles are given as input.
+
+    Raises `TooManyRequestsError` for rate limits reached (codes 429 or 503); exception contains
     retry_after field expressed in seconds.
 
-    Raises ValueError for other status codes.
+    Raises `ValueError` for other status codes.
 
-    Caller is responsible for handling missing article titles and redirects.
+    Caller is responsible for handling missing article titles.
     Function is intended for internal use only since this abstracts a single API call.
     """
     assert len(titles) <= 50
@@ -34,6 +38,7 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
             "titles": "|".join(titles),
             "format": "json",
             "formatversion": "2",
+            "redirects": True
         }
     headers = {
         "User-Agent": USER_AGENT
