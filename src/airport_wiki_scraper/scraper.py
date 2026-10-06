@@ -25,6 +25,6 @@ def fetch(title: str):
     return text
 
 
-def parse(title: str) -> mwp.wikicode.Wikicode:
+def fetch_and_parse(title: str) -> mwp.wikicode.Wikicode:
     text = fetch(title)
     return mwp.parse(text)
