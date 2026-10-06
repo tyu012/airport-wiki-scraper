@@ -1,6 +1,7 @@
 import mwparserfromhell as mwp
 import requests
-import os
+from time import sleep
+import random
 
 API_URL = "https://en.wikipedia.org/w/api.php"
 
@@ -29,6 +30,7 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
 
     Caller is responsible for handling missing article titles.
     Function is intended for internal use only since this abstracts a single API call.
+    The API does not guarantee order.
     """
     assert len(titles) <= 50
     params = {
@@ -46,15 +48,16 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
     res = requests.get(API_URL, headers=headers, params=params)
     if res.status_code == 200:
         res_json = res.json()
-        pages = res_json["query"]["pages"]
         texts = []
-        for page in pages:
-            page_data = { "title": page["title"] }
-            try:
-                page_data["content"] = page["revisions"][0]["content"]
-            except:
-                page_data["content"] = None
-            texts.append(page_data)
+        if len(titles) > 0:
+            pages = res_json["query"]["pages"]
+            for page in pages:
+                page_data = { "title": page["title"] }
+                try:
+                    page_data["content"] = page["revisions"][0]["content"]
+                except:
+                    page_data["content"] = None
+                texts.append(page_data)
         return texts
     elif res.status_code == 429 or res.status_code == 503:
         raise TooManyRequestsError(int(res.headers.get("Retry-After", "5")))
@@ -62,6 +65,47 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
         raise ValueError("Error 403 from MediaWiki Action API, invalid parameters")
     else:
         raise ValueError(f"Error {res.status_code} from MediaWiki Action API")
+
+
+def queue_fetch(
+    titles: list[str], max_attempts: int=5, min_delay_ms: int=350, verbose: bool=False
+) -> list[dict[str, str | None]]:
+    """
+    Fetches any number of Wikipedia articles with titles given as a list by executing a series of
+    batched requests to the MediaWiki Action API.
+
+    Each request will attempted for up to `max_attempts` times if rate-limited; if all attempts fail,
+    only the content of articles successfully retrieved will be returned.
+
+    Minimum delay time in ms between each request is `min_delay_ms`. By default, the delay is set
+    to comply with the specified rate limit for unauthenticated bots with User-Agent as specified in
+    [Wikimedia APIs/Rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits).
+    If a rate limit is reached, exponential backoff starting at the value of `min_delay_ms` is used,
+    or the value of the Retry-After header, whichever is higher.
+
+    The API does not guarantee order.
+    """
+    texts = []
+    min_delay = min_delay_ms / 1000
+
+    for lower_bound in range(0, len(titles), 50):
+        for attempt in range(max_attempts):
+            try:
+                upper_bound = min(lower_bound + 50, len(titles))
+                result = fetch_multiple(titles[lower_bound:upper_bound])
+                texts.extend(result)
+                if verbose:
+                    print(f"Fetched {upper_bound - lower_bound} articles. Waiting {min_delay} s.")
+                sleep(min_delay)
+                break
+            except TooManyRequestsError as e:
+                if verbose:
+                    print(f"Unable to fetch {upper_bound - lower_bound} articles. This was attempt {attempt+1} of {max_attempts}")
+                if attempt == max_attempts - 1:
+                    return texts
+                wait_time = max(e.retry_after, random.random() * min_delay * (2 ** attempt) + min_delay)
+                sleep(wait_time)
+    return texts
 
 
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html
@@ -85,7 +129,7 @@ class TooManyRequestsError(Exception):
     > request. If no such header is present, clients should wait at least five
     > seconds, or implement exponential back-off. 
     """
-    def __init__(self, retry_after: int=5, msg: str="Too Many Requests"):
+    def __init__(self, retry_after: int=0, msg: str="Too Many Requests"):
         self.retry_after = retry_after
         self.msg = msg
         super().__init__(self.msg)

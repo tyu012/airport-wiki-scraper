@@ -95,3 +95,26 @@ def test_redirect(mocker):
 def test_fetch_multiple_too_many(mocker):
     with pytest.raises(AssertionError):
         fetch_multiple([str(i) for i in range(51)])
+
+
+def test_fetch_multiple_zero(mocker):
+    mock_get = mocker.patch("requests.get")
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {}
+    result = fetch_multiple([])
+    assert result == []
+
+
+@pytest.mark.parametrize("input, batches", [
+    ([], []),
+    (["1"], [["1"]]),
+    ([str(i) for i in range(50)], [[str(i) for i in range(50)]]),
+    ([str(i) for i in range(51)], [[str(i) for i in range(50)], ["50"]]),
+    ([str(i) for i in range(100)], [[str(i) for i in range(50)], [str(i) for i in range(50, 100)]])
+])
+def test_queue_fetch_batching(mocker, input, batches):
+    mock_fetch = mocker.patch("airport_wiki_scraper.scraper.fetch_multiple")
+    mock_fetch.return_value = []
+    result = queue_fetch(input)
+    calls = [mocker.call(i) for i in batches]
+    mock_fetch.assert_has_calls(calls)
