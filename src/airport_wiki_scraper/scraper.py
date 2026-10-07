@@ -2,10 +2,11 @@ import mwparserfromhell as mwp
 import requests
 from time import sleep
 import random
+import os
 
 API_URL = "https://en.wikipedia.org/w/api.php"
 
-USER_AGENT = "AirWikiExplorer/0.1 (https://github.com/tyu012; yuyu.tim@gmail.com)" 
+USER_AGENT = os.getenv("MW_USER_AGENT")
 
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html
 def fetch(title: str):
@@ -29,6 +30,8 @@ def mw_action_req(params: dict) -> dict:
     Function is intended for internal use only since this abstracts a single API call.
     The API does not guarantee order.
     """
+    if USER_AGENT == None:
+        raise RuntimeError("`MW_USER_AGENT` environment variable missing.")
     headers = {
         "User-Agent": USER_AGENT
     }
