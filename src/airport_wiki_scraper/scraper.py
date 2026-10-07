@@ -9,17 +9,14 @@ USER_AGENT = "AirWikiExplorer/0.1 (https://github.com/tyu012; yuyu.tim@gmail.com
 
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html
 def fetch(title: str):
-    return fetch_multiple([title])[0]["content"]
+    return fetch_multiple_articles([title])[0]["content"]
 
 
-def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
+def mw_action_request(params: dict) -> dict:
     """
-    Fetches up to 50 Wikipedia articles with titles given as a list via the MediaWiki Action API.
+    Sends a request with the given parameters via the MediaWiki Action API.
 
-    Returns wikitext content as a list of dicts, with keys "title" and "content":
-    - "title" refers to the resolved title of the article, after redirects and normalization.
-    - "content" contains the wikitext of the respective articles.
-    - Pages not found are represented by "title" as given and "content" as None.
+    Response as JSON is returned to caller for further processing.
 
     Raises `AssertionError` if more than 50 titles are given as input.
 
@@ -32,6 +29,34 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
     Function is intended for internal use only since this abstracts a single API call.
     The API does not guarantee order.
     """
+    headers = {
+        "User-Agent": USER_AGENT
+    }
+    res = requests.get(API_URL, headers=headers, params=params)
+    if res.status_code == 200:
+        return res.json()
+    elif res.status_code == 429 or res.status_code == 503:
+        raise TooManyRequestsError(int(res.headers.get("Retry-After", "5")))
+    elif res.status_code == 403:
+        raise ValueError("Error 403 from MediaWiki Action API, invalid parameters")
+    else:
+        raise ValueError(f"Error {res.status_code} from MediaWiki Action API")
+
+
+def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
+    """
+    Fetches up to 50 Wikipedia articles with titles given as a list via the MediaWiki Action API.
+
+    Returns wikitext content as a list of dicts, with keys "title" and "content":
+    - "title" refers to the resolved title of the article, after redirects and normalization.
+    - "content" contains the wikitext of the respective articles.
+    - Pages not found are represented by "title" as given and "content" as None.
+
+    Caller is responsible for handling missing article titles.
+    Function is intended for internal use only since this abstracts a single API call.
+    The API does not guarantee order.
+    See `mw_action_request` for possible exceptions raised.
+    """
     assert len(titles) <= 50
     params = {
             "action": "query",
@@ -42,29 +67,18 @@ def fetch_multiple(titles: list[str]) -> list[dict[str, str | None]]:
             "formatversion": "2",
             "redirects": True
         }
-    headers = {
-        "User-Agent": USER_AGENT
-    }
-    res = requests.get(API_URL, headers=headers, params=params)
-    if res.status_code == 200:
-        res_json = res.json()
-        texts = []
-        if len(titles) > 0:
-            pages = res_json["query"]["pages"]
-            for page in pages:
-                page_data = { "title": page["title"] }
-                try:
-                    page_data["content"] = page["revisions"][0]["content"]
-                except:
-                    page_data["content"] = None
-                texts.append(page_data)
-        return texts
-    elif res.status_code == 429 or res.status_code == 503:
-        raise TooManyRequestsError(int(res.headers.get("Retry-After", "5")))
-    elif res.status_code == 403:
-        raise ValueError("Error 403 from MediaWiki Action API, invalid parameters")
-    else:
-        raise ValueError(f"Error {res.status_code} from MediaWiki Action API")
+    res_json = mw_action_request(params)
+    texts = []
+    if len(titles) > 0:
+        pages = res_json["query"]["pages"]
+        for page in pages:
+            page_data = { "title": page["title"] }
+            try:
+                page_data["content"] = page["revisions"][0]["content"]
+            except:
+                page_data["content"] = None
+            texts.append(page_data)
+    return texts
 
 
 def queue_fetch(
@@ -92,7 +106,7 @@ def queue_fetch(
         for attempt in range(max_attempts):
             try:
                 upper_bound = min(lower_bound + 50, len(titles))
-                result = fetch_multiple(titles[lower_bound:upper_bound])
+                result = fetch_multiple_articles(titles[lower_bound:upper_bound])
                 texts.extend(result)
                 if verbose:
                     print(f"Fetched {upper_bound - lower_bound} articles. Waiting {min_delay} s.")
