@@ -82,6 +82,8 @@ def interpret_dests(
     iterator = peekable(filtered_dests.__iter__())
     for node in iterator:
         lowertext = node.lower()
+        apply_all = "all" in lowertext or "both" in lowertext
+
         if type(node) == mwp.nodes.Wikilink:
             structured_dests.append(AirRoute(
                 origin=origin,
@@ -90,34 +92,69 @@ def interpret_dests(
                 seasonal=seasonal,
                 charter=charter
             ))
+
         elif "seasonal charter" in lowertext:
             seasonal = True
             charter = True
+
         elif "seasonal" in lowertext:
             seasonal = True
             charter = False
+
         elif "charter" in lowertext:
             seasonal = False
             charter = True
+
         elif "suspended" in lowertext:
             # Suspended flights may include a date. Try to parse a date.
-            resume_date = parse_date(lowertext, iterator)
+            _apply_air_route_prop(
+                structured_dests,
+                "suspended",
+                True,
+                apply_all)
+            _apply_air_route_prop(
+                structured_dests,
+                "resumes",
+                parse_date(lowertext, iterator),
+                apply_all)
 
-            if "all" in lowertext:
-                # Handle "all suspended" at end - apply to all 
-                for route in structured_dests:
-                    route.suspended = True
-                    route.resumes = resume_date
-            else:
-                structured_dests[-1].suspended = True
-                structured_dests[-1].resumes = resume_date
-        elif "begins" in lowertext:
-            structured_dests[-1].begins = parse_date(lowertext, iterator)
-        elif "resumes" in lowertext:
-            structured_dests[-1].resumes = parse_date(lowertext, iterator)
-        elif "ends" in lowertext:
-            structured_dests[-1].ends = parse_date(lowertext, iterator)
+        elif "begin" in lowertext:
+            _apply_air_route_prop(
+                structured_dests,
+                "begins",
+                parse_date(lowertext, iterator),
+                apply_all)
+
+        elif "resume" in lowertext:
+            _apply_air_route_prop(
+                structured_dests,
+                "resumes",
+                parse_date(lowertext, iterator),
+                apply_all)
+
+        elif "end" in lowertext:
+            _apply_air_route_prop(
+                structured_dests,
+                "ends",
+                parse_date(lowertext, iterator),
+                apply_all)
     return structured_dests
+
+
+def _apply_air_route_prop(values: list[AirRoute], prop: str, value, apply_all: bool=False):
+    """
+    Applies values to properties in a list of AirRoute objects.
+
+    `prop` is the name of the field to access.
+    `value` is the value to set.
+    `apply_all` determines whether the property should be applied to all list elements.
+    """
+    if apply_all:
+        for elem in values:
+            setattr(elem, prop, value)
+    else:
+        setattr(values[-1], prop, value)
+
 
 
 def parse_date(
