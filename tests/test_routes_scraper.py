@@ -16,7 +16,7 @@ ORIGIN = "MyAirport"
 
 example_a_2col = """{{Airport destination list
 | [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]] (begins {{date|2026-10-1}}),<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]] (ends March 1, 2018),<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> (suspended)<br />'''Charter:''' [[Calvi – Sainte-Catherine Airport|Calvi]], [[Dublin Airport|Dublin]]<br/> {{em|Seasonal Charter:}} [[Grand Bahama International Airport|Freeport]]
-| [[Puño Airlines]] | [[Miami International Airport|Miami]]<ref name=Puno>Ref 4</ref> <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]<ref name=Puno/>
+| [[Puño Airlines]] | [[Miami International Airport|Miami]] (resumes May 12, 2023)<ref name=Puno>Ref 4</ref> <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]<ref name=Puno/>
 }}"""
 example_a_2col_wt = parse(example_a_2col)
 
@@ -43,7 +43,7 @@ example_a_solutions = [
     AirRoute(ORIGIN, "Grand Bahama International Airport", "Oceanic Airlines", seasonal=True, charter=True),
 
     # Test second airline, seasonal and charter flags should be reset
-    AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines"),
+    AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines", resumes=datetime(2023, 5, 12)),
 
     # Seasonal flight, uses italics formatting for seasonal label
     AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
