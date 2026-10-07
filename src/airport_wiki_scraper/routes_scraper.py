@@ -83,6 +83,7 @@ def interpret_dests(
     for node in iterator:
         lowertext = node.lower()
         apply_all = "all" in lowertext or "both" in lowertext
+
         if type(node) == mwp.nodes.Wikilink:
             structured_dests.append(AirRoute(
                 origin=origin,
@@ -91,15 +92,19 @@ def interpret_dests(
                 seasonal=seasonal,
                 charter=charter
             ))
+
         elif "seasonal charter" in lowertext:
             seasonal = True
             charter = True
+
         elif "seasonal" in lowertext:
             seasonal = True
             charter = False
+
         elif "charter" in lowertext:
             seasonal = False
             charter = True
+
         elif "suspended" in lowertext:
             # Suspended flights may include a date. Try to parse a date.
             _apply_air_route_prop(
@@ -111,8 +116,7 @@ def interpret_dests(
                 structured_dests,
                 "resumes",
                 parse_date(lowertext, iterator),
-                apply_all
-            )
+                apply_all)
 
         elif "begin" in lowertext:
             _apply_air_route_prop(
