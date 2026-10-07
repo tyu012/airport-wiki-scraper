@@ -20,11 +20,6 @@ def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mw
     NOTE: Cargo information on Wikipedia is generally incomplete compared to passenger information.
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
-    # regex = r"Airport destination list|Airport-dest-list" # includes all redirects
-    # destination_lists = page.filter_templates(matches=regex)
-    # passenger = destination_lists[0]
-    # cargo = destination_lists[1] if len(destination_lists) > 1 else None
-    # return passenger, cargo
 
     # Detect relevant headings and templates.
     regex = r"(Airlines and Destinations|Passenger|Cargo|{{Airport destination list|{{Airport-dest-list)"
