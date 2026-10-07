@@ -102,16 +102,18 @@ def interpret_dests(
             charter = True
         elif "suspended" in lowertext:
             # Suspended flights may include a date. Try to parse a date.
-            resume_date = parse_date(lowertext, iterator)
+            _apply_air_route_prop(
+                structured_dests,
+                "suspended",
+                True,
+                apply_all)
+            _apply_air_route_prop(
+                structured_dests,
+                "resumes",
+                parse_date(lowertext, iterator),
+                apply_all
+            )
 
-            if apply_all:
-                # Handle "all suspended" at end - apply to all 
-                for route in structured_dests:
-                    route.suspended = True
-                    route.resumes = resume_date
-            else:
-                structured_dests[-1].suspended = True
-                structured_dests[-1].resumes = resume_date
         elif "begin" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
