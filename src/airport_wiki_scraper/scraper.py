@@ -43,14 +43,35 @@ def mw_action_request(params: dict) -> dict:
         raise ValueError(f"Error {res.status_code} from MediaWiki Action API")
 
 
+def _process_multiple_articles(res_json: dict) -> list[dict[str, str | None]]:
+    """
+    Given the response JSON from a single API request with the parameters invoked by
+    `fetch_multiple_articles`, processes response into a list of dicts, with keys "title" and
+    "content": 
+
+    - "title" refers to the resolved title of the article, after redirects and normalization.
+    - "content" contains the wikitext of the respective articles.
+    - Pages not found are represented by "title" as given and "content" as None.
+    """
+    texts = []
+    if "query" in res_json.keys():
+        pages = res_json["query"]["pages"]
+        for page in pages:
+            page_data = { "title": page["title"] }
+            try:
+                page_data["content"] = page["revisions"][0]["content"]
+            except:
+                page_data["content"] = None
+            texts.append(page_data)
+    return texts
+
+
 def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
     """
     Fetches up to 50 Wikipedia articles with titles given as a list via the MediaWiki Action API.
 
-    Returns wikitext content as a list of dicts, with keys "title" and "content":
-    - "title" refers to the resolved title of the article, after redirects and normalization.
-    - "content" contains the wikitext of the respective articles.
-    - Pages not found are represented by "title" as given and "content" as None.
+    Returns wikitext content as a list of dicts, with keys "title" and "content".
+    See `process_multiple_articles` for specifics.
 
     Caller is responsible for handling missing article titles.
     Function is intended for internal use only since this abstracts a single API call.
@@ -68,20 +89,11 @@ def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
             "redirects": True
         }
     res_json = mw_action_request(params)
-    texts = []
-    if len(titles) > 0:
-        pages = res_json["query"]["pages"]
-        for page in pages:
-            page_data = { "title": page["title"] }
-            try:
-                page_data["content"] = page["revisions"][0]["content"]
-            except:
-                page_data["content"] = None
-            texts.append(page_data)
-    return texts
+    return _process_multiple_articles(res_json)
+    
 
 
-def queue_fetch(
+def queue_fetch_articles(
     titles: list[str], max_attempts: int=5, min_delay_ms: int=350, verbose: bool=False
 ) -> list[dict[str, str | None]]:
     """

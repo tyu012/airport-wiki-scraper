@@ -112,9 +112,9 @@ def test_fetch_multiple_zero(mocker):
     ([str(i) for i in range(51)], [[str(i) for i in range(50)], ["50"]]),
     ([str(i) for i in range(100)], [[str(i) for i in range(50)], [str(i) for i in range(50, 100)]])
 ])
-def test_queue_fetch_batching(mocker, input, batches):
+def test_queue_fetch_articles_batching(mocker, input, batches):
     mock_fetch = mocker.patch("airport_wiki_scraper.scraper.fetch_multiple_articles")
     mock_fetch.return_value = []
-    result = queue_fetch(input)
+    result = queue_fetch_articles(input)
     calls = [mocker.call(i) for i in batches]
     mock_fetch.assert_has_calls(calls)
