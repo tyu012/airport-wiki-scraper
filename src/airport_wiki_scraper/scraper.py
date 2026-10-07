@@ -12,7 +12,7 @@ def fetch(title: str):
     return fetch_multiple_articles([title])[0]["content"]
 
 
-def mw_action_request(params: dict) -> dict:
+def mw_action_req(params: dict) -> dict:
     """
     Sends a request with the given parameters via the MediaWiki Action API.
 
@@ -41,6 +41,42 @@ def mw_action_request(params: dict) -> dict:
         raise ValueError("Error 403 from MediaWiki Action API, invalid parameters")
     else:
         raise ValueError(f"Error {res.status_code} from MediaWiki Action API")
+
+
+def mw_action_req_delayed(
+    params: dict, max_attempts: int=5, min_delay_ms: int=350, exp_backoff_base_ms: int=350,
+    verbose: bool=False) -> dict:
+    """
+    Makes a request to the MediaWiki Action API by calling `mw_action_req`, respecting the
+    [Wikimedia API rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits).
+    Each request will attempted for up to `max_attempts` times if rate-limited.
+    If all attempts fail, `ConnectionError` is raised.
+
+    Minimum delay time in ms following the request is `min_delay_ms`. By default, the delay is set
+    to comply with the specified rate limit for unauthenticated bots with User-Agent.
+
+    If a rate limit is reached, exponential backoff with a minimum delay of `min_delay_ms` added to
+    `exp_backoff_base_ms * 2^attempt` is used, or the value of the Retry-After header, whichever is
+    higher.
+    """
+    min_delay = min_delay_ms / 1000
+    exp_backoff_base = exp_backoff_base_ms / 1000
+    for attempt in range(max_attempts):
+        try:
+            res_json = mw_action_req(params)
+            if verbose:
+                print(f"Successful request. Waiting {min_delay} s.")
+            sleep(min_delay)
+            return res_json
+        except TooManyRequestsError as e:
+            if verbose:
+                print(f"Request was rate limited. This was attempt {attempt+1} of {max_attempts}")
+            if attempt == max_attempts - 1:
+                break
+            wait_time = max(e.retry_after, random.random() * exp_backoff_base * (2 ** attempt) + min_delay)
+            sleep(wait_time)
+
+    raise ConnectionError()
 
 
 def _process_multiple_articles(res_json: dict) -> list[dict[str, str | None]]:
@@ -88,8 +124,36 @@ def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
             "formatversion": "2",
             "redirects": True
         }
-    res_json = mw_action_request(params)
+    res_json = mw_action_req(params)
     return _process_multiple_articles(res_json)
+
+
+def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
+    """
+    Fetches the titles of all Wikipedia articles with transcluded Airport destination list
+    templates.
+    A delay occurs between each request.
+    """
+    params = {
+            "action": "query",
+            "prop": "transcludedin",
+            "titles": "Template:Airport destination list",
+            "format": "json",
+            "tilimit": 500,
+            "tinamespace": 0
+        }
+    titles = []
+
+    while True:
+        res_json = mw_action_req_delayed(params, verbose=verbose)
+        res_titles = [page["title"] for page in res_json["query"]["pages"]["20184814"]["transcludedin"]]
+        titles.extend(res_titles)
+        if "continue" in res_json.keys():
+            params["ticontinue"] = res_json["continue"]["ticontinue"]
+        else:
+            break
+
+    return titles
     
 
 
