@@ -4,8 +4,6 @@ A Python-based Wikipedia scraper that parses "Airports and Destinations" tables 
 
 # How to use
 
-
-
 ## Obtain data
 
 - Install dependencies
@@ -23,7 +21,7 @@ MW_USER_AGENT="AirWikiExplorer/0.1 (EMAIL)"
 
 ## Generated data locations:
 
-The following pre-generated data is available in this repo:
+The following data will be generated:
 - `data/structured/airroutes.jsonl` - All passenger air routes parsed from Wikipedia airport pages. Airport and airline names are directly retrieved from links.
 - `data/wikitext/airport_articles.jsonl` - All Wikipedia articles (title and wikitext content) containing `Airport destination list` templates.
 - `data/airports.txt` - List of all Wikipedia articles containing `Airport destination list` templates.
