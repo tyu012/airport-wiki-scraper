@@ -184,7 +184,10 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
     airline: str = ""
     air_routes = []
 
-    for param in apdl.params:
+    named_params = [param for param in apdl.params if param.showkey]
+    unnamed_params = [param for param in apdl.params if not param.showkey]
+
+    for param in named_params:
         stripped_param_name = param.name.strip()
         print(stripped_param_name)
         # Check if 3rd or 4th columns are present
@@ -195,17 +198,18 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
         elif stripped_param_name == "3rdcolunsortable" or stripped_param_name == "4thcolunsortable":
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
             pass
-        else:
-            # Parameter is either an airline or destination, determined by column position
-            col_number = counter % cols
-            if col_number == 0:
-                # First column contains single airline wikilink
-                airline = str(param.value.filter_wikilinks()[0].title)
-                print("Airline: " + airline)
-            if col_number == 1:
-                filtered_items = filter_apdl_dests(param)
-                airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
-                air_routes.extend(airline_routes)
-                print("Collecting air routes")
-            counter += 1
+
+    for param in unnamed_params:
+        # Parameter is either an airline or destination, determined by column position
+        col_number = counter % cols
+        if col_number == 0:
+            # First column contains single airline wikilink
+            airline = str(param.value.filter_wikilinks()[0].title)
+            print("Airline: " + airline)
+        if col_number == 1:
+            filtered_items = filter_apdl_dests(param)
+            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
+            air_routes.extend(airline_routes)
+            print("Collecting air routes")
+        counter += 1
     return air_routes
