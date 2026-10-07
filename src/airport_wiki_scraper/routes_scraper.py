@@ -8,27 +8,39 @@ from airport_wiki_scraper.scraper import fetch_and_parse
 import re
 
 
-def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template, mwp.nodes.Template | None]:
+def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mwp.nodes.Template | None]:
     """
     Returns a tuple containing the airport destination lists of the given Wikipedia article.
-    The first return element is the passenger list.
-    The second return element is the cargo list if exists, otherwise None.
-    Assume that the article contains at least one airport destination list.
+    - The first return element is the passenger list, otherwise None if the article only contains a
+    cargo list.
+    - The second return element is the cargo list if exists, otherwise None if the article only
+    contains a passenger list.
+    - Assume that the article contains at least one airport destination list.
 
     NOTE: Cargo information on Wikipedia is generally incomplete compared to passenger information.
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
-    regex = r"Airport destination list|Airport-dest-list" # includes all redirects
-    destination_lists = page.filter_templates(matches=regex)
-    """
-    According to WP:AIRPORTSG,
-    Cargo airlines may be included after Airlines and destinations but are not necessary. 
-    Therefore, assume the first 'Airport destination list' is for passenger and the second is
-    for cargo.
-    """
-    passenger = destination_lists[0]
-    cargo = destination_lists[1] if len(destination_lists) > 1 else None
-    return passenger, cargo
+
+    # Detect relevant headings and templates.
+    regex = r"(Airlines and Destinations|Passenger|Cargo|{{Airport destination list|{{Airport-dest-list)"
+    filtered_items = page.filter(recursive=False, matches=regex, flags=re.IGNORECASE)
+
+    passenger_list = None
+    cargo_list = None
+
+    # Use headings to detect whether airport destination list is cargo.
+    cargo = False
+    for node in filtered_items:
+        if type(node) == mwp.nodes.Heading:
+            cargo = True if node.strip("=").lower() == "cargo" else False
+        if type(node) == mwp.nodes.Template:
+            if cargo and cargo != None:
+                cargo_list = node
+            else:
+                passenger_list = node
+
+    return passenger_list, cargo_list
+    
 
 
 def filter_apdl_dests(column: mwp.nodes.extras.Parameter) -> list[mwp.nodes.Node]:
@@ -198,7 +210,10 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
     airline: str = ""
     air_routes = []
 
-    for param in apdl.params:
+    named_params = [param for param in apdl.params if param.showkey]
+    unnamed_params = [param for param in apdl.params if not param.showkey]
+
+    for param in named_params:
         stripped_param_name = param.name.strip()
         print(stripped_param_name)
         # Check if 3rd or 4th columns are present
@@ -209,17 +224,18 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
         elif stripped_param_name == "3rdcolunsortable" or stripped_param_name == "4thcolunsortable":
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
             pass
-        else:
-            # Parameter is either an airline or destination, determined by column position
-            col_number = counter % cols
-            if col_number == 0:
-                # First column contains single airline wikilink
-                airline = str(param.value.filter_wikilinks()[0].title)
-                print("Airline: " + airline)
-            if col_number == 1:
-                filtered_items = filter_apdl_dests(param)
-                airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
-                air_routes.extend(airline_routes)
-                print("Collecting air routes")
-            counter += 1
+
+    for param in unnamed_params:
+        # Parameter is either an airline or destination, determined by column position
+        col_number = counter % cols
+        if col_number == 0:
+            # First column contains single airline wikilink
+            airline = str(param.value.filter_wikilinks()[0].title)
+            print("Airline: " + airline)
+        if col_number == 1:
+            filtered_items = filter_apdl_dests(param)
+            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
+            air_routes.extend(airline_routes)
+            print("Collecting air routes")
+        counter += 1
     return air_routes
