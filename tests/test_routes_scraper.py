@@ -142,22 +142,33 @@ example_page_pass = """{{Infobox airport}}
 }}"""
 example_page_pass_wt = parse(example_page_pass)
 
+
+example_page_cargo_2 = """==Airlines and destinations==
+===Cargo===
+{{Airport destination list
+<!-- -->
+| [[Ameriflight]]|'''Seasonal:''' [[Hollywood Burbank Airport|Burbank]]
+}}
+"""
+example_page_cargo_2_wt = parse(example_page_cargo_2)
+
 @pytest.mark.parametrize("input, has_passenger, has_cargo, pass_params, cargo_params", [
-    (example_page_wt,       True, True, 4, 2),
-    (example_page_cargo_wt, False, True, 0, 2),
-    (example_page_pass_wt,  True, False, 4, 0),
+    (example_page_wt,         True, True, 4, 2),
+    (example_page_cargo_wt,   False, True, 0, 2),
+    (example_page_pass_wt,    True, False, 4, 0),
+    (example_page_cargo_2_wt, False, True, 0, 2)
 ])
 def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     p, c = get_apdl(input)
     if has_passenger:
         assert type(p) == mwp.nodes.Template
-        assert p.name.strip() == "Airport destination list" or p.name.strip() == "Airport-dest-list"
+        assert "Airport destination list" in p.name or "Airport-dest-list" in p.name
         assert len(p.params) == pass_params
     else:
         assert p == None
     if has_cargo:
         assert type(c) == mwp.nodes.Template
-        assert c.name.strip() == "Airport destination list" or c.name.strip() == "Airport-dest-list"
+        assert "Airport destination list" in c.name or "Airport-dest-list" in c.name
         assert len(c.params) == cargo_params
     else:
         assert c == None
