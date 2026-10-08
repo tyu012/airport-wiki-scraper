@@ -75,11 +75,16 @@ def interpret_dests(
 
     In practice, interpret_dests is for one airline at a time.
 
+    Limitations:
+    - Unreliably but gracefully attempts to handle destinations without wikilinks if those pass any
+    filters.
+
     TODO: Store destinations using a more stable identifier rather than wiki links.
     """
     structured_dests: list[AirRoute] = []
     seasonal = False
     charter = False
+
     iterator = peekable(filtered_dests.__iter__())
     for node in iterator:
         lowertext = node.lower()
@@ -91,7 +96,7 @@ def interpret_dests(
                 destination=str(node.title).strip(),
                 airline=airline,
                 seasonal=seasonal,
-                charter=charter
+                charter=charter,
             ))
             if verbose:
                 print(f"Added route: {origin} - {str(node.title)} ({airline})")
@@ -135,12 +140,25 @@ def interpret_dests(
                 parse_date(lowertext, iterator),
                 apply_all)
 
-        elif "end" in lowertext:
+        elif "ends" in lowertext or "ending" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
                 parse_date(lowertext, iterator),
                 apply_all)
+
+
+        else:
+            # Other text, assume airports without wikilink 
+            # Labels like "Cropdusting: " are ignored by filter_apdl_dests - see Jarikaba Airstrip
+            # Warning: is unreliable; very few airports have this edge case. Mainly used as a
+            # fallback.
+            dests = str(node).split(",")
+            for dest in dests:
+                if dest.strip() != "":
+                    structured_dests.append(AirRoute(
+                        origin=origin, destination=dest.strip(), airline=airline
+                    ))
     return structured_dests
 
 

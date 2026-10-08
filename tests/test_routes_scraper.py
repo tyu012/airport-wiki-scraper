@@ -129,6 +129,24 @@ example_f_solutions = [
     AirRoute(ORIGIN, "Budapest Ferenc Liszt International Airport", "Ryanair")
 ]
 
+# Airports that lack wikilinks, i.e. Rubondo Airstrip
+example_g = """{{airport-dest-list
+| {{nowrap|[[Coastal Aviation]]}} | Grumeti, Kogatende, [[Lake Manyara Airport|Manyara]]}}"""
+
+example_g_solutions = [
+    AirRoute(ORIGIN, "Grumeti", "Coastal Aviation"),
+    AirRoute(ORIGIN, "Kogatende", "Coastal Aviation"),
+    AirRoute(ORIGIN, "Lake Manyara Airport", "Coastal Aviation")
+]
+
+# Airports with labels like "Charter" and "Seasonal" but for other purposes.
+example_h = """{{Airport destination list
+|[[Eagle Air Services]]|'''Cropdusting:''' [[Saramacca District|Saramacca]]}}"""
+
+example_h_solutions = [
+    AirRoute(ORIGIN, "Saramacca District", "Eagle Air Services")
+]
+
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
 ==Passenger==
@@ -199,7 +217,9 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_d_2col,     example_d_solutions, "test 'suspended until'"),
     (example_e_2col,     example_e_solutions, "airline not wikilink"),
     (example_e_2col_end, example_e_solutions, "extraneous empty parameters at end"),
-    (example_f,          example_f_solutions, "parameter across line break quirk")
+    (example_f,          example_f_solutions, "parameter across line break quirk"),
+    (example_g,          example_g_solutions, "airports without wikilinks"),
+    (example_h,          example_h_solutions, "other colon labels are ignored")
 ])
 def test_extract_apdl(input, expected, name):
     parsed = parse(input)
