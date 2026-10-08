@@ -88,7 +88,7 @@ def interpret_dests(
         if type(node) == mwp.nodes.Wikilink:
             structured_dests.append(AirRoute(
                 origin=origin,
-                destination=str(node.title),
+                destination=str(node.title).strip(),
                 airline=airline,
                 seasonal=seasonal,
                 charter=charter
@@ -205,7 +205,7 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
-def extract_apdl(apdl: mwp.nodes.Template, origin: str = "", verbose: bool=False) -> list[AirRoute]:
+def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: bool=False) -> list[AirRoute]:
     """
     Extracts airline and destination data from the airport destination list template.
     Assumes list is formatted in accordance to Template:Airport Destination List
@@ -219,6 +219,11 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "", verbose: bool=False
     # State saved between iterations
     airline: str = ""
     air_routes = []
+
+    # Convert to string, replace newlines with spaces, and re-parse as template to avoid issues
+    # with parameters stretched across lines
+    apdl_str = str(apdl_template).replace("\n", " ")
+    apdl = mwp.parse(apdl_str).filter_templates()[0]
 
     named_params = [param for param in apdl.params if param.showkey]
     unnamed_params = [param for param in apdl.params if not param.showkey]

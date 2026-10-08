@@ -118,6 +118,17 @@ example_e_solutions = [
     AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
 ]
 
+# Right column parameter split across two lines -- MW parses correctly but not mwparserfromhell
+# i.e. Gdańsk Lech Wałęsa Airport
+example_f = """{{airport-dest-list
+|[[Ryanair]] | [[Budapest Ferenc Liszt International Airport
+|Budapest]] }}
+"""
+
+example_f_solutions = [
+    AirRoute(ORIGIN, "Budapest Ferenc Liszt International Airport", "Ryanair")
+]
+
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
 ==Passenger==
@@ -188,6 +199,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_d_2col,     example_d_solutions, "test 'suspended until'"),
     (example_e_2col,     example_e_solutions, "airline not wikilink"),
     (example_e_2col_end, example_e_solutions, "extraneous empty parameters at end"),
+    (example_f,          example_f_solutions, "parameter across line break quirk")
 ])
 def test_extract_apdl(input, expected, name):
     parsed = parse(input)
