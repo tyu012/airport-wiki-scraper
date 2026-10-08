@@ -114,6 +114,24 @@ example_e_2col_end = """{{Airport destination list
 | [[Oceanic Airlines]] | [[Athens International Airport|Athens]]
 }}"""
 
+example_e_comment = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]], <!--[[Los Angeles Internationaal Airport|Los Angeles]]<ref name=LA>Ref 2</ref>-->
+}}"""
+
+example_e_efn_ref = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]]{{efn|Ethiopian Airlines flights make an intermediate stop in Hong Kong en route to the listed destination. However, the airline has no [[Freedoms of the air|fifth freedom rights]] to carry passengers solely between Manila and Hong Kong.<ref>{{OAGWorldMay2025Ref|title=Addis Ababa, Ethiopia ADD|pages=17-19}}</ref>}}
+}}"""
+
+# Airline without wikilink and with nowrap, i.e. Juneau International Airport
+example_e_nowrap_txt = """{{Airport destination list
+| {{nowrap|Oceanic Airlines}} | [[Athens International Airport|Athens]]
+}}"""
+
+# Airline with nowrap
+example_e_nowrap_link = """{{Airport destination list
+| {{nowrap|[[Oceanic Airlines]]}} | [[Athens International Airport|Athens]]
+}}"""
+
 example_e_solutions = [
     AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
 ]
@@ -208,18 +226,22 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
 
 
 @pytest.mark.parametrize("input, expected, name", [
-    (example_a_2col,     example_a_solutions, "2 columns with multiple cases"),
-    (example_b_3col,     example_b_solutions, "3 columns"),
-    (example_b_3col_end, example_b_solutions, "3 columns with named params at end"),
-    (example_b_4col,     example_b_solutions, "4 columns"),
-    (example_b_4col_end, example_b_solutions, "4 columns with named params at end"),
-    (example_c_2col,     example_c_solutions, "test 'all suspended'"),
-    (example_d_2col,     example_d_solutions, "test 'suspended until'"),
-    (example_e_2col,     example_e_solutions, "airline not wikilink"),
-    (example_e_2col_end, example_e_solutions, "extraneous empty parameters at end"),
-    (example_f,          example_f_solutions, "parameter across line break quirk"),
-    (example_g,          example_g_solutions, "airports without wikilinks"),
-    (example_h,          example_h_solutions, "other colon labels are ignored")
+    (example_a_2col,         example_a_solutions, "2 columns with multiple cases"),
+    (example_b_3col,         example_b_solutions, "3 columns"),
+    (example_b_3col_end,     example_b_solutions, "3 columns with named params at end"),
+    (example_b_4col,         example_b_solutions, "4 columns"),
+    (example_b_4col_end,     example_b_solutions, "4 columns with named params at end"),
+    (example_c_2col,         example_c_solutions, "test 'all suspended'"),
+    (example_d_2col,         example_d_solutions, "test 'suspended until'"),
+    (example_e_2col,         example_e_solutions, "airline not wikilink"),
+    (example_e_2col_end,     example_e_solutions, "extraneous empty parameters at end"),
+    (example_e_comment,      example_e_solutions, "comments should be ignored"),
+    (example_e_efn_ref,      example_e_solutions, "footnotes and references should be ignored"),
+    (example_e_nowrap_txt,   example_e_solutions, "handles airline nowrap without wikilink"),
+    (example_e_nowrap_link,  example_e_solutions, "handles airline nowrap with wikilink"),
+    (example_f,              example_f_solutions, "parameter across line break quirk"),
+    (example_g,              example_g_solutions, "airports without wikilinks"),
+    (example_h,              example_h_solutions, "other colon labels are ignored")
 ])
 def test_extract_apdl(input, expected, name):
     parsed = parse(input)

@@ -90,6 +90,11 @@ def interpret_dests(
         lowertext = node.lower()
         apply_all = "all" in lowertext or "both" in lowertext
 
+        if "<!--" in node or "{{efn" in node or "<ref>" in node or "</ref>" in node:
+            # Sometimes comments and explanatory footnotes resolve to Wikilink types if wikilinks
+            # are contained. They can be ignored.
+            continue
+
         if type(node) == mwp.nodes.Wikilink:
             structured_dests.append(AirRoute(
                 origin=origin,
@@ -236,7 +241,7 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
 
     # State saved between iterations
     airline: str = ""
-    air_routes = []
+    air_routes: list[AirRoute] = []
 
     # Convert to string, replace newlines with spaces, and re-parse as template to avoid issues
     # with parameters stretched across lines
@@ -262,19 +267,30 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
         # Parameter is either an airline or destination, determined by column position
         col_number = counter % cols
         if col_number == 0:
+            # Handle nowrap templates
+            param_value = param.value
+            param_nowrap = param_value.filter_templates(matches="nowrap")
+            if len(param_nowrap) > 0:
+                airline_wikicode = param_nowrap[0].params[0].value
+            else:
+                airline_wikicode = param_value
+
             # First column contains single airline wikilink
             try:
-                airline = str(param.value.filter_wikilinks()[0].title)
+                airline = str(airline_wikicode.filter_wikilinks()[0].title)
             except:
                 try:
-                    airline = str(param.value.filter_text()[0]).strip()
+                    airline = str(airline_wikicode.filter_text()[0]).strip()
                 except: 
                     airline = ""
             # print("Airline: " + airline)
+
         if col_number == 1:
             filtered_items = filter_apdl_dests(param)
             airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline, verbose=verbose)
-            air_routes.extend(airline_routes)
+            for route in airline_routes:
+                air_routes.append(route)
             # print("Collecting air routes")
+
         counter += 1
     return air_routes
