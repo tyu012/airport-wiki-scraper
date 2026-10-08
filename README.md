@@ -1,6 +1,14 @@
 # AirWikiExplorer
 
-A Python-based Wikipedia scraper that parses "Airports and Destinations" tables (more precisely, `Airport destination list` templates).
+A Python-based Wikipedia data pipeline that parses "Airports and Destinations" tables (more precisely, `Airport destination list` templates).
+
+# Features
+
+- Parses airport destination lists from wikitext of more than **4,500** Wikipedia articles
+- Retrieves over **100,000** passenger air routes consisting of origin, destination, airline, and other attributes (seasonal, charter, suspended, start/end/resume dates)
+- Calls MediaWiki Action API to obtain Wikipedia articles, respecting Wikimedia Foundation rate limits
+- Robustly handles edge cases when parsing
+- Test cases cover a range of edge cases found during the development process
 
 # How to use
 
