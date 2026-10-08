@@ -8,7 +8,9 @@ from airport_wiki_scraper.scraper import fetch_and_parse
 import re
 
 
-def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mwp.nodes.Template | None]:
+def get_apdl(
+    page: mwp.wikicode.Wikicode, verbose=False
+) -> tuple[mwp.nodes.Template | None, mwp.nodes.Template | None]:
     """
     Returns a tuple containing the airport destination lists of the given Wikipedia article.
     - The first return element is the passenger list, otherwise None if the article only contains a
@@ -21,23 +23,27 @@ def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mw
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
 
-    # Detect relevant headings and templates.
-    regex = r"(Airlines and Destinations|Passenger|Cargo|{{Airport destination list|{{Airport-dest-list)"
-    filtered_items = page.filter(recursive=False, matches=regex, flags=re.IGNORECASE)
+    page = mwp.parse(strip_ref_tags(str(page)))
+
+    regex = r"(Airlines and Destinations|Passenger|Cargo|\{\{\s*Airport([ _]destination[ _]list|-dest-list))"
+    filtered_items = page.filter(recursive=True, matches=regex, flags=re.IGNORECASE)
 
     passenger_list = None
     cargo_list = None
 
-    # Use headings to detect whether airport destination list is cargo.
+    # Use content of previous nodes to detect whether airport destination list is cargo.
     cargo = False
     for node in filtered_items:
-        if type(node) == mwp.nodes.Heading:
-            cargo = True if node.strip("=").lower() == "cargo" else False
-        if type(node) == mwp.nodes.Template:
-            if cargo and cargo != None:
+        if (type(node) == mwp.nodes.template.Template and
+            re.search(r"Airport([ _]+destination[ _]+list|-dest-list)",
+                      node.name.strip(), flags=re.IGNORECASE)):
+            if cargo:
                 cargo_list = node
             else:
                 passenger_list = node
+        elif (type(node) == mwp.nodes.heading.Heading or
+              (type(node) == mwp.nodes.tag.Tag and node.wiki_markup == "'''")):
+            cargo = True if "cargo" in node.lower() else False
 
     return passenger_list, cargo_list
     
@@ -64,7 +70,8 @@ def filter_apdl_dests(column: mwp.nodes.extras.Parameter) -> list[mwp.nodes.Node
 def interpret_dests(
     filtered_dests: list[mwp.nodes.Node],
     origin: str="",
-    airline: str=""
+    airline: str="",
+    verbose: bool=False
 ) -> list[AirRoute]:
     """
     Read an ordered list of mwp nodes returned by filter_apdl_dests and convert to a list of dicts.
@@ -74,24 +81,36 @@ def interpret_dests(
 
     In practice, interpret_dests is for one airline at a time.
 
+    Limitations:
+    - Unreliably but gracefully attempts to handle destinations without wikilinks if those pass any
+    filters.
+
     TODO: Store destinations using a more stable identifier rather than wiki links.
     """
     structured_dests: list[AirRoute] = []
     seasonal = False
     charter = False
+
     iterator = peekable(filtered_dests.__iter__())
     for node in iterator:
         lowertext = node.lower()
         apply_all = "all" in lowertext or "both" in lowertext
 
+        if "<!--" in node or "{{efn" in node or "<ref>" in node or "</ref>" in node:
+            # Sometimes comments and explanatory footnotes resolve to Wikilink types if wikilinks
+            # are contained. They can be ignored.
+            continue
+
         if type(node) == mwp.nodes.Wikilink:
             structured_dests.append(AirRoute(
                 origin=origin,
-                destination=str(node.title),
+                destination=str(node.title).strip(),
                 airline=airline,
                 seasonal=seasonal,
-                charter=charter
+                charter=charter,
             ))
+            if verbose:
+                print(f"Added route: {origin} - {str(node.title)} ({airline})")
 
         elif "seasonal charter" in lowertext:
             seasonal = True
@@ -132,12 +151,25 @@ def interpret_dests(
                 parse_date(lowertext, iterator),
                 apply_all)
 
-        elif "end" in lowertext:
+        elif "ends" in lowertext or "ending" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
                 parse_date(lowertext, iterator),
                 apply_all)
+
+
+        else:
+            # Other text, assume airports without wikilink 
+            # Labels like "Cropdusting: " are ignored by filter_apdl_dests - see Jarikaba Airstrip
+            # Warning: is unreliable; very few airports have this edge case. Mainly used as a
+            # fallback.
+            dests = str(node).split(",")
+            for dest in dests:
+                if dest.strip() != "":
+                    structured_dests.append(AirRoute(
+                        origin=origin, destination=dest.strip(), airline=airline
+                    ))
     return structured_dests
 
 
@@ -178,10 +210,11 @@ def parse_date(
         date = dparser.parse(processed_text, fuzzy=True)
     except:
         try:
-            date = dparser.parse(filtered_dests.peek().lower(), fuzzy=True)
+            next_node = filtered_dests.peek().lower()
+            date = dparser.parse(next_node, fuzzy=True)
             filtered_dests.__next__()
         except:
-            print(f"Unable to find expected date for \"{filtered_dests.peek()}\". Note: Suspended flights may not have resume date.")
+            print(f"Unable to find expected date. Note: Suspended flights may not have resume date.")
     return date
 
 
@@ -201,7 +234,88 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
-def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
+REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
+REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
+REF_MALFORMED_RE = re.compile(r"<ref\b[^<>]*?/\s*(?=<|$)", re.IGNORECASE)
+
+
+def strip_ref_tags(text: str, origin: str = "") -> str:
+    """
+    Removes <ref> tags from wikitext before it is parsed as a template.
+
+    Reference tags are irrelevant to route extraction, but when their markup is malformed (e.g. a
+    missing ">" in `<ref name="x"/<ref>`), the "=" characters inside their contents can leak into
+    template parameter boundaries and shift every subsequent row. Malformed fragments are reported
+    as warnings since they are likely editing errors worth fixing on Wikipedia.
+    """
+    malformed = REF_MALFORMED_RE.findall(text)
+    if malformed:
+        print(f"Warning: malformed ref tag(s) for '{origin}': {malformed}")
+    # Self-closing refs must be removed before paired refs, otherwise a self-closing tag such as
+    # `<ref name=x/>` is mistaken for an opening tag and swallows content up to the next `</ref>`.
+    text = REF_SELF_CLOSING_RE.sub("", text)
+    text = REF_PAIRED_RE.sub("", text)
+    text = REF_MALFORMED_RE.sub("", text)
+    return text
+
+
+def _could_be_airline(param: mwp.nodes.extras.Parameter) -> bool:
+    """
+    Heuristically determines whether a template parameter in the first column represents an airline.
+
+    An airline cell contains at most one wikilink (possibly wrapped in a nowrap template). A cell
+    containing multiple wikilinks is more likely a misplaced destination list, indicating that the
+    template's columns are misaligned.
+
+    Examples:
+    ```
+    [[Airline|Full Airline Name]]
+    [[Airline]]
+    Airline
+    {{nowrap|[[Airline]]}}
+    {{nowrap|Airline}}
+    [[Airline A]] operated by [[Airline B]]    # non-compliant, will parse first airline
+    [[Airline B]] for [[Airline A]]            # non-compliant, will parse first airline
+    ```
+    """
+    value = param.value
+
+    # Check for nowrap template, if so, extract content
+    nowrap = value.filter_templates(matches="nowrap")
+    if len(nowrap) > 0:
+        value = nowrap[0].params[0].value
+
+    # If there is zero or one wikilinks, then assume the parameter represents an airline.
+    # Exception: if "operated" is in the value
+    wikilinks = len(value.filter_wikilinks())
+    if "operated" in value or " for " in value:
+        return wikilinks <= 2
+    else:
+        return wikilinks <= 1
+
+
+def _extract_airline(param: mwp.nodes.extras.Parameter) -> str:
+    """
+    Extracts an airline name from a first-column template parameter, handling nowrap templates and
+    airlines given without a wikilink.
+    """
+    param_value = param.value
+    param_nowrap = param_value.filter_templates(matches="nowrap")
+    if len(param_nowrap) > 0:
+        airline_wikicode = param_nowrap[0].params[0].value
+    else:
+        airline_wikicode = param_value
+
+    try:
+        return str(airline_wikicode.filter_wikilinks()[0].title)
+    except:
+        try:
+            return str(airline_wikicode.filter_text()[0]).strip()
+        except:
+            return ""
+
+
+def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: bool=False) -> list[AirRoute]:
     """
     Extracts airline and destination data from the airport destination list template.
     Assumes list is formatted in accordance to Template:Airport Destination List
@@ -210,18 +324,22 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
     """
     # Columns defaults to 2
     cols = 2
-    counter = 0
 
     # State saved between iterations
-    airline: str = ""
-    air_routes = []
+    air_routes: list[AirRoute] = []
+
+    # Convert to string, replace newlines with spaces, and re-parse as template to avoid issues
+    # with parameters stretched across lines
+    apdl_str = str(apdl_template).replace("\n", " ")
+    # Attempt to strip reference tags
+    apdl = mwp.parse(apdl_str).filter_templates()[0]
 
     named_params = [param for param in apdl.params if param.showkey]
     unnamed_params = [param for param in apdl.params if not param.showkey]
 
     for param in named_params:
         stripped_param_name = param.name.strip()
-        print(stripped_param_name)
+        # print(stripped_param_name)
         # Check if 3rd or 4th columns are present
         if stripped_param_name == "3rdcoltitle" and cols < 3:
             cols = 3
@@ -231,17 +349,29 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
             pass
 
-    for param in unnamed_params:
-        # Parameter is either an airline or destination, determined by column position
-        col_number = counter % cols
-        if col_number == 0:
-            # First column contains single airline wikilink
-            airline = str(param.value.filter_wikilinks()[0].title)
-            print("Airline: " + airline)
-        if col_number == 1:
-            filtered_items = filter_apdl_dests(param)
-            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
-            air_routes.extend(airline_routes)
-            print("Collecting air routes")
-        counter += 1
+    # Ignore stray trailing empty cells so they do not look like an incomplete row
+    while (
+        unnamed_params
+        and len(unnamed_params) % cols != 0
+        and not str(unnamed_params[-1].value).strip()
+    ):
+        unnamed_params.pop()
+
+    # Process parameters in rows, so a misaligned row can be skipped as a whole
+    rows = [unnamed_params[i:i + cols] for i in range(0, len(unnamed_params), cols)]
+    for row in rows:
+        if len(row) < cols or not _could_be_airline(row[0]):
+            cells = [str(param.value).strip() for param in row]
+            print(f"Warning: skipping misaligned row for '{origin}': {cells}")
+            continue
+
+        # First column contains the airline
+        airline = _extract_airline(row[0])
+
+        # Second column contains the destinations for that airline
+        filtered_items = filter_apdl_dests(row[1])
+        airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline, verbose=verbose)
+        for route in airline_routes:
+            air_routes.append(route)
+
     return air_routes

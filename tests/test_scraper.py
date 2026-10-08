@@ -27,7 +27,7 @@ def fetch_multiple_mocker(mocker):
 
 
 def test_fetch_multiple(fetch_multiple_mocker):
-    result = fetch_multiple(["title1", "title2"])
+    result = fetch_multiple_articles(["title1", "title2"])
     assert result == [
         { "title": "title1", "content": "EXAMPLE1" },
         { "title": "title2", "content": "EXAMPLE2" }
@@ -44,14 +44,14 @@ def test_rate_limit(mocker):
     mock_get.return_value.status_code = 429
     mock_get.return_value.headers = { "Retry-After": "1" }
     with pytest.raises(TooManyRequestsError) as exc_info:
-        fetch_multiple(["title1", "title2"])
+        fetch_multiple_articles(["title1", "title2"])
 
 
 def test_forbidden(mocker):
     mock_get = mocker.patch("requests.get")
     mock_get.return_value.status_code = 403
     with pytest.raises(ValueError):
-        fetch_multiple(["badtitle1", "badtitle2"]) 
+        fetch_multiple_articles(["badtitle1", "badtitle2"]) 
 
 
 def test_missing_article(mocker):
@@ -67,7 +67,7 @@ def test_missing_article(mocker):
             ]
         }
     } 
-    result = fetch_multiple(["bad title"])
+    result = fetch_multiple_articles(["bad title"])
     assert result == [{ "title": "bad title", "content": None }]
 
 
@@ -88,20 +88,20 @@ def test_redirect(mocker):
             ]
         }
     } 
-    result = fetch_multiple(["redirect title"])
+    result = fetch_multiple_articles(["redirect title"])
     assert result == [{ "title": "original title", "content": "content" }]
 
 
 def test_fetch_multiple_too_many(mocker):
     with pytest.raises(AssertionError):
-        fetch_multiple([str(i) for i in range(51)])
+        fetch_multiple_articles([str(i) for i in range(51)])
 
 
 def test_fetch_multiple_zero(mocker):
     mock_get = mocker.patch("requests.get")
     mock_get.return_value.status_code = 200
     mock_get.return_value.json.return_value = {}
-    result = fetch_multiple([])
+    result = fetch_multiple_articles([])
     assert result == []
 
 
@@ -112,9 +112,9 @@ def test_fetch_multiple_zero(mocker):
     ([str(i) for i in range(51)], [[str(i) for i in range(50)], ["50"]]),
     ([str(i) for i in range(100)], [[str(i) for i in range(50)], [str(i) for i in range(50, 100)]])
 ])
-def test_queue_fetch_batching(mocker, input, batches):
-    mock_fetch = mocker.patch("airport_wiki_scraper.scraper.fetch_multiple")
+def test_queue_fetch_articles_batching(mocker, input, batches):
+    mock_fetch = mocker.patch("airport_wiki_scraper.scraper.fetch_multiple_articles")
     mock_fetch.return_value = []
-    result = queue_fetch(input)
+    result = queue_fetch_articles(input)
     calls = [mocker.call(i) for i in batches]
     mock_fetch.assert_has_calls(calls)
