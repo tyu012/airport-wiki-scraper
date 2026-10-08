@@ -64,7 +64,8 @@ def filter_apdl_dests(column: mwp.nodes.extras.Parameter) -> list[mwp.nodes.Node
 def interpret_dests(
     filtered_dests: list[mwp.nodes.Node],
     origin: str="",
-    airline: str=""
+    airline: str="",
+    verbose: bool=False
 ) -> list[AirRoute]:
     """
     Read an ordered list of mwp nodes returned by filter_apdl_dests and convert to a list of dicts.
@@ -92,6 +93,8 @@ def interpret_dests(
                 seasonal=seasonal,
                 charter=charter
             ))
+            if verbose:
+                print(f"Added route: {origin} - {str(node.title)} ({airline})")
 
         elif "seasonal charter" in lowertext:
             seasonal = True
@@ -178,10 +181,11 @@ def parse_date(
         date = dparser.parse(processed_text, fuzzy=True)
     except:
         try:
-            date = dparser.parse(filtered_dests.peek().lower(), fuzzy=True)
+            next_node = filtered_dests.peek().lower()
+            date = dparser.parse(next_node, fuzzy=True)
             filtered_dests.__next__()
         except:
-            print(f"Unable to find expected date for \"{filtered_dests.peek()}\". Note: Suspended flights may not have resume date.")
+            print(f"Unable to find expected date. Note: Suspended flights may not have resume date.")
     return date
 
 
@@ -201,7 +205,7 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
-def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
+def extract_apdl(apdl: mwp.nodes.Template, origin: str = "", verbose: bool=False) -> list[AirRoute]:
     """
     Extracts airline and destination data from the airport destination list template.
     Assumes list is formatted in accordance to Template:Airport Destination List
@@ -221,7 +225,7 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
 
     for param in named_params:
         stripped_param_name = param.name.strip()
-        print(stripped_param_name)
+        # print(stripped_param_name)
         # Check if 3rd or 4th columns are present
         if stripped_param_name == "3rdcoltitle" and cols < 3:
             cols = 3
@@ -236,12 +240,18 @@ def extract_apdl(apdl: mwp.nodes.Template, origin: str = "") -> list[AirRoute]:
         col_number = counter % cols
         if col_number == 0:
             # First column contains single airline wikilink
-            airline = str(param.value.filter_wikilinks()[0].title)
-            print("Airline: " + airline)
+            try:
+                airline = str(param.value.filter_wikilinks()[0].title)
+            except:
+                try:
+                    airline = str(param.value.filter_text()[0]).strip()
+                except: 
+                    airline = ""
+            # print("Airline: " + airline)
         if col_number == 1:
             filtered_items = filter_apdl_dests(param)
-            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline)
+            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline, verbose=verbose)
             air_routes.extend(airline_routes)
-            print("Collecting air routes")
+            # print("Collecting air routes")
         counter += 1
     return air_routes
