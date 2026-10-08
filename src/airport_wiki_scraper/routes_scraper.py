@@ -8,7 +8,9 @@ from airport_wiki_scraper.scraper import fetch_and_parse
 import re
 
 
-def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mwp.nodes.Template | None]:
+def get_apdl(
+    page: mwp.wikicode.Wikicode, verbose=False
+) -> tuple[mwp.nodes.Template | None, mwp.nodes.Template | None]:
     """
     Returns a tuple containing the airport destination lists of the given Wikipedia article.
     - The first return element is the passenger list, otherwise None if the article only contains a
@@ -21,23 +23,27 @@ def get_apdl(page: mwp.wikicode.Wikicode) -> tuple[mwp.nodes.Template | None, mw
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
 
-    # Detect relevant headings and templates.
-    regex = r"(Airlines and Destinations|Passenger|Cargo|{{Airport destination list|{{Airport-dest-list)"
-    filtered_items = page.filter(recursive=False, matches=regex, flags=re.IGNORECASE)
+    page = mwp.parse(strip_ref_tags(str(page)))
+
+    regex = r"(Airlines and Destinations|Passenger|Cargo|\{\{\s*Airport([ _]destination[ _]list|-dest-list))"
+    filtered_items = page.filter(recursive=True, matches=regex, flags=re.IGNORECASE)
 
     passenger_list = None
     cargo_list = None
 
-    # Use headings to detect whether airport destination list is cargo.
+    # Use content of previous nodes to detect whether airport destination list is cargo.
     cargo = False
     for node in filtered_items:
-        if type(node) == mwp.nodes.Heading:
-            cargo = True if node.strip("=").lower() == "cargo" else False
-        if type(node) == mwp.nodes.Template:
-            if cargo and cargo != None:
+        if (type(node) == mwp.nodes.template.Template and
+            re.search(r"Airport([ _]+destination[ _]+list|-dest-list)",
+                      node.name.strip(), flags=re.IGNORECASE)):
+            if cargo:
                 cargo_list = node
             else:
                 passenger_list = node
+        elif (type(node) == mwp.nodes.heading.Heading or
+              (type(node) == mwp.nodes.tag.Tag and node.wiki_markup == "'''")):
+            cargo = True if "cargo" in node.lower() else False
 
     return passenger_list, cargo_list
     
@@ -268,15 +274,24 @@ def _could_be_airline(param: mwp.nodes.extras.Parameter) -> bool:
     Airline
     {{nowrap|[[Airline]]}}
     {{nowrap|Airline}}
+    [[Airline A]] operated by [[Airline B]]    # non-compliant, will parse first airline
+    [[Airline B]] for [[Airline A]]            # non-compliant, will parse first airline
     ```
     """
     value = param.value
+
     # Check for nowrap template, if so, extract content
     nowrap = value.filter_templates(matches="nowrap")
     if len(nowrap) > 0:
         value = nowrap[0].params[0].value
+
     # If there is zero or one wikilinks, then assume the parameter represents an airline.
-    return len(value.filter_wikilinks()) <= 1
+    # Exception: if "operated" is in the value
+    wikilinks = len(value.filter_wikilinks())
+    if "operated" in value or " for " in value:
+        return wikilinks <= 2
+    else:
+        return wikilinks <= 1
 
 
 def _extract_airline(param: mwp.nodes.extras.Parameter) -> str:
@@ -317,7 +332,6 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     # with parameters stretched across lines
     apdl_str = str(apdl_template).replace("\n", " ")
     # Attempt to strip reference tags
-    apdl_str = strip_ref_tags(apdl_str, origin=origin)
     apdl = mwp.parse(apdl_str).filter_templates()[0]
 
     named_params = [param for param in apdl.params if param.showkey]

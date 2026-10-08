@@ -132,6 +132,15 @@ example_e_nowrap_link = """{{Airport destination list
 | {{nowrap|[[Oceanic Airlines]]}} | [[Athens International Airport|Athens]]
 }}"""
 
+# Airline with operator
+example_e_operator = """{{Airport destination list
+| [[Oceanic Airlines]] operated by [[Another Airline]] | [[Athens International Airport|Athens]]
+}}"""
+
+example_e_op_for = """{{Airport destination list
+| [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
+}}"""
+
 example_e_solutions = [
     AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
 ]
@@ -165,6 +174,17 @@ example_h_solutions = [
     AirRoute(ORIGIN, "Saramacca District", "Eagle Air Services")
 ]
 
+# Template name variations, i.e. Jumla Airport
+example_i_whitespace = """{{ airport-dest-list
+| [[Nepal Airlines]] | [[Nepalgunj Airport|Nepalgunj]]}}"""
+
+example_i_underscore = """{{Airport_destination_list
+| [[Nepal Airlines]] | [[Nepalgunj Airport|Nepalgunj]]}}"""
+
+example_i_solutions = [
+    AirRoute(ORIGIN, "Nepalgunj Airport", "Nepal Airlines")
+]
+
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
 ==Passenger==
@@ -185,6 +205,32 @@ example_page_cargo = """{{Infobox airport}}
 | [[Oceanic Airlines Cargo]] | [[Athens International Airport|Athens]]
 }}"""
 
+# Test APDLs under bolded headings
+
+example_page_bold = """{{Infobox airport}}
+=Airlines and Destinations=
+==Passenger==
+{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]] (begins {{date|2026-10-1}}),<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]] (ends March 1, 2018),<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> (suspended)<br />'''Charter:''' [[Calvi – Sainte-Catherine Airport|Calvi]], [[Dublin Airport|Dublin]]<br/> {{em|Seasonal Charter:}} [[Grand Bahama International Airport|Freeport]]
+| [[Puño Airlines]] | [[Miami International Airport|Miami]]<ref name=Puno>Ref 4</ref> <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]<ref name=Puno/>
+}}
+==Cargo==
+{{Airport-dest-list
+| [[Oceanic Airlines Cargo]] | [[Athens International Airport|Athens]]
+}}"""
+
+example_page_cargo_bold = """{{Infobox airport}}
+'''Cargo'''
+{{Airport-dest-list
+| [[Oceanic Airlines Cargo]] | [[Athens International Airport|Athens]]
+}}"""
+
+example_page_pass_bold = """{{Infobox airport}}
+'''Passenger'''
+{{Airport-dest-list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+}}"""
+
 
 example_page_pass = """{{Infobox airport}}
 =Airlines and Destinations=
@@ -201,6 +247,20 @@ example_page_cargo_2 = """==Airlines and destinations==
 | [[Ameriflight]]|'''Seasonal:''' [[Hollywood Burbank Airport|Burbank]]
 }}
 """
+
+# Clearly a mistake, but should still handle just in case. e.g. Inyokern Airport
+# Expect to only retrieve one cargo list.
+example_page_cargo_3 = """
+=Airlines and Destinations=
+==Cargo==
+{{Airport-dest-list
+| [[Oceanic Airlines Cargo]] | [[Athens International Airport|Athens]]
+}}
+=Airlines and Destinations=
+==Cargo==
+{{Airport-dest-list
+| [[Oceanic Airlines Cargo]] | [[Athens International Airport|Athens]]
+}}"""
 
 # To be used for tests of misaligned ref tags
 example_dsm = """{{Airport destination list
@@ -226,10 +286,14 @@ example_dsm = """{{Airport destination list
 """
 
 @pytest.mark.parametrize("input, has_passenger, has_cargo, pass_params, cargo_params", [
-    (example_page,         True, True, 4, 2),
-    (example_page_cargo,   False, True, 0, 2),
-    (example_page_pass,    True, False, 4, 0),
-    (example_page_cargo_2, False, True, 0, 2)
+    (example_page,            True, True, 4, 2),
+    (example_page_cargo,      False, True, 0, 2),
+    (example_page_bold,       True, True, 4, 2),
+    (example_page_pass,       True, False, 4, 0),
+    (example_page_pass_bold,  True, False, 2, 0),
+    (example_page_cargo_bold, False, True, 0, 2),
+    (example_page_cargo_2,    False, True, 0, 2),
+    (example_page_cargo_3,    False, True, 0, 2)
 ])
 def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     parsed = parse(input)
@@ -262,9 +326,13 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_efn_ref,      example_e_solutions, "footnotes and references should be ignored"),
     (example_e_nowrap_txt,   example_e_solutions, "handles airline nowrap without wikilink"),
     (example_e_nowrap_link,  example_e_solutions, "handles airline nowrap with wikilink"),
+    (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
+    (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
-    (example_h,              example_h_solutions, "other colon labels are ignored")
+    (example_h,              example_h_solutions, "other colon labels are ignored"),
+    (example_i_whitespace,   example_i_solutions, "template name with whitespace"),
+    (example_i_underscore,   example_i_solutions, "template name with underscore replacing space"),
 ])
 def test_extract_apdl(input, expected, name):
     parsed = parse(input)
