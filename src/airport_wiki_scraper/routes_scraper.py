@@ -228,6 +228,78 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
+REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
+REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
+REF_MALFORMED_RE = re.compile(r"<ref\b[^<>]*?/\s*(?=<|$)", re.IGNORECASE)
+
+
+def strip_ref_tags(text: str, origin: str = "") -> str:
+    """
+    Removes <ref> tags from wikitext before it is parsed as a template.
+
+    Reference tags are irrelevant to route extraction, but when their markup is malformed (e.g. a
+    missing ">" in `<ref name="x"/<ref>`), the "=" characters inside their contents can leak into
+    template parameter boundaries and shift every subsequent row. Malformed fragments are reported
+    as warnings since they are likely editing errors worth fixing on Wikipedia.
+    """
+    malformed = REF_MALFORMED_RE.findall(text)
+    if malformed:
+        print(f"Warning: malformed ref tag(s) for '{origin}': {malformed}")
+    # Self-closing refs must be removed before paired refs, otherwise a self-closing tag such as
+    # `<ref name=x/>` is mistaken for an opening tag and swallows content up to the next `</ref>`.
+    text = REF_SELF_CLOSING_RE.sub("", text)
+    text = REF_PAIRED_RE.sub("", text)
+    text = REF_MALFORMED_RE.sub("", text)
+    return text
+
+
+def _could_be_airline(param: mwp.nodes.extras.Parameter) -> bool:
+    """
+    Heuristically determines whether a template parameter in the first column represents an airline.
+
+    An airline cell contains at most one wikilink (possibly wrapped in a nowrap template). A cell
+    containing multiple wikilinks is more likely a misplaced destination list, indicating that the
+    template's columns are misaligned.
+
+    Examples:
+    ```
+    [[Airline|Full Airline Name]]
+    [[Airline]]
+    Airline
+    {{nowrap|[[Airline]]}}
+    {{nowrap|Airline}}
+    ```
+    """
+    value = param.value
+    # Check for nowrap template, if so, extract content
+    nowrap = value.filter_templates(matches="nowrap")
+    if len(nowrap) > 0:
+        value = nowrap[0].params[0].value
+    # If there is zero or one wikilinks, then assume the parameter represents an airline.
+    return len(value.filter_wikilinks()) <= 1
+
+
+def _extract_airline(param: mwp.nodes.extras.Parameter) -> str:
+    """
+    Extracts an airline name from a first-column template parameter, handling nowrap templates and
+    airlines given without a wikilink.
+    """
+    param_value = param.value
+    param_nowrap = param_value.filter_templates(matches="nowrap")
+    if len(param_nowrap) > 0:
+        airline_wikicode = param_nowrap[0].params[0].value
+    else:
+        airline_wikicode = param_value
+
+    try:
+        return str(airline_wikicode.filter_wikilinks()[0].title)
+    except:
+        try:
+            return str(airline_wikicode.filter_text()[0]).strip()
+        except:
+            return ""
+
+
 def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: bool=False) -> list[AirRoute]:
     """
     Extracts airline and destination data from the airport destination list template.
@@ -237,15 +309,15 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     """
     # Columns defaults to 2
     cols = 2
-    counter = 0
 
     # State saved between iterations
-    airline: str = ""
     air_routes: list[AirRoute] = []
 
     # Convert to string, replace newlines with spaces, and re-parse as template to avoid issues
     # with parameters stretched across lines
     apdl_str = str(apdl_template).replace("\n", " ")
+    # Attempt to strip reference tags
+    apdl_str = strip_ref_tags(apdl_str, origin=origin)
     apdl = mwp.parse(apdl_str).filter_templates()[0]
 
     named_params = [param for param in apdl.params if param.showkey]
@@ -263,34 +335,29 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
             pass
 
-    for param in unnamed_params:
-        # Parameter is either an airline or destination, determined by column position
-        col_number = counter % cols
-        if col_number == 0:
-            # Handle nowrap templates
-            param_value = param.value
-            param_nowrap = param_value.filter_templates(matches="nowrap")
-            if len(param_nowrap) > 0:
-                airline_wikicode = param_nowrap[0].params[0].value
-            else:
-                airline_wikicode = param_value
+    # Ignore stray trailing empty cells so they do not look like an incomplete row
+    while (
+        unnamed_params
+        and len(unnamed_params) % cols != 0
+        and not str(unnamed_params[-1].value).strip()
+    ):
+        unnamed_params.pop()
 
-            # First column contains single airline wikilink
-            try:
-                airline = str(airline_wikicode.filter_wikilinks()[0].title)
-            except:
-                try:
-                    airline = str(airline_wikicode.filter_text()[0]).strip()
-                except: 
-                    airline = ""
-            # print("Airline: " + airline)
+    # Process parameters in rows, so a misaligned row can be skipped as a whole
+    rows = [unnamed_params[i:i + cols] for i in range(0, len(unnamed_params), cols)]
+    for row in rows:
+        if len(row) < cols or not _could_be_airline(row[0]):
+            cells = [str(param.value).strip() for param in row]
+            print(f"Warning: skipping misaligned row for '{origin}': {cells}")
+            continue
 
-        if col_number == 1:
-            filtered_items = filter_apdl_dests(param)
-            airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline, verbose=verbose)
-            for route in airline_routes:
-                air_routes.append(route)
-            # print("Collecting air routes")
+        # First column contains the airline
+        airline = _extract_airline(row[0])
 
-        counter += 1
+        # Second column contains the destinations for that airline
+        filtered_items = filter_apdl_dests(row[1])
+        airline_routes = interpret_dests(filtered_items, origin=origin, airline=airline, verbose=verbose)
+        for route in airline_routes:
+            air_routes.append(route)
+
     return air_routes
