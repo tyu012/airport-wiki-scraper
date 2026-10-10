@@ -1,7 +1,6 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-@dataclass
-class Airport:
+class Airport(BaseModel):
     """
     Class that represents selected infobox data and metadata from Wikipedia airport articles.
     """
