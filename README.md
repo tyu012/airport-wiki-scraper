@@ -38,6 +38,7 @@ The following data will be generated:
 
 - Python
 - mwparserfromhell
+- Pydantic
 
 ## Why this architecture
 
