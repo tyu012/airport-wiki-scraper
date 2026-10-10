@@ -1,8 +1,7 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 import datetime as dt
 
-@dataclass
-class AirRoute:
+class AirRoute(BaseModel):
     """
     Class that represents an air route on Wikipedia's Airlines and Destinations 
     """
