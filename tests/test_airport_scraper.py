@@ -47,6 +47,15 @@ airport_a_infobox_no_coord = """{{Infobox airport
 | IATA              = LAX
 | ICAO              = KLAX
 }}"""
+airport_b_title = "EuroAirport Basel–Mulhouse–Freiburg"
+airport_b_infobox = """{{Infobox airport
+| name                   = EuroAirport Basel–Mulhouse–Freiburg
+| ICAO                   = LFSB
+}}"""
+airport_c_title = "March Air Reserve Base"
+airport_c_infobox = """{{Infobox military installation
+| IATA                   = RIV
+| ICAO                   = KRIV}}"""
 
 @pytest.mark.parametrize("infobox, title, expected", [
     (airport_a_infobox,           airport_a_title,
@@ -54,7 +63,11 @@ airport_a_infobox_no_coord = """{{Infobox airport
     (airport_a_infobox_no_iata,   airport_a_title,
         Airport(icao="KLAX", wiki_title=airport_a_title, coordinates=(12.34, 56.78))),
     (airport_a_infobox_no_coord,  airport_a_title,
-        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX"))
+        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX")),
+    (airport_b_infobox, airport_b_title,
+        Airport(icao="LFSB", wiki_title=airport_b_title)),
+    (airport_c_infobox, airport_c_title,
+        Airport(icao="KRIV", wiki_title=airport_c_title, iata="RIV"))
 ])
 def test_parse_airport_infobox(infobox, title, expected: Airport):
     parsed_infobox = parse_airport_infobox(mwp.parse(infobox), title)

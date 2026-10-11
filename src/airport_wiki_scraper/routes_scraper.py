@@ -236,9 +236,7 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
-REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
-REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
-REF_MALFORMED_RE = re.compile(r"<ref\b[^<>]*?/\s*(?=<|$)", re.IGNORECASE)
+
 
 
 def _could_be_airline(param: mwp.nodes.extras.Parameter) -> bool:
