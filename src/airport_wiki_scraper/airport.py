@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Airport(BaseModel):
     """
     Class that represents selected infobox data and metadata from Wikipedia airport articles.
     """
-    icao: str
-    iata: str | None
+    icao: str = Field(min_length=4, max_length=4)
     wiki_title: str
-    coordinates: tuple[float, float] | None
+    iata: str | None = Field(default=None, min_length=3, max_length=3)
+    coordinates: tuple[float, float] | None = None
