@@ -131,33 +131,7 @@ def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
     return _process_multiple_articles(res_json)
 
 
-def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
-    """
-    Fetches the titles of all Wikipedia articles with transcluded Airport destination list
-    templates.
-    A delay occurs between each request.
-    """
-    params = {
-            "action": "query",
-            "prop": "transcludedin",
-            "titles": "Template:Airport destination list",
-            "format": "json",
-            "formatversion": 2,
-            "tilimit": 500,
-            "tinamespace": 0
-        }
-    titles = []
 
-    while True:
-        res_json = mw_action_req_delayed(params, verbose=verbose)
-        res_titles = [page["title"] for page in res_json["query"]["pages"][0]["transcludedin"]]
-        titles.extend(res_titles)
-        if "continue" in res_json.keys():
-            params["ticontinue"] = res_json["continue"]["ticontinue"]
-        else:
-            break
-
-    return titles
     
 
 
@@ -200,6 +174,83 @@ def queue_fetch_articles(
                 wait_time = max(e.retry_after, random.random() * min_delay * (2 ** attempt) + min_delay)
                 sleep(wait_time)
     return texts
+
+
+def queue_fetch_redirects(
+    titles: list[str], verbose: bool=False
+) -> list[dict[str, str]]:
+    """
+    Fetches the articles that redirect to the articles with given titles.
+    Returns a list of dicts, each with the keys `"from"` and `"to"` which indicate the origin and
+    destination of the redirect.
+    """
+    params = {
+            "action": "query",
+            "prop": "redirects",
+            "format": "json",
+            "formatversion": 2,
+            "rdlimit": 500,
+            "rdnamespace": 0
+        }
+    redirects = []
+    titles_processed = [title.strip() for title in titles]
+
+    # Add each title to itself
+    for page_title in titles_processed:
+        redirects.append({ "from": page_title, "to": page_title })
+
+    for lower_bound in range(0, len(titles_processed), 50):
+        params["titles"] = "|".join(titles_processed[lower_bound:lower_bound + 50])
+        # Has 50 articles - make an API call.
+        # Repeat until there are no more redirects within the 50 articles.
+        while True:
+            res_json = mw_action_req_delayed(params, verbose=verbose)
+            # Handle redirects
+            for page in res_json["query"]["pages"]:
+                page_title = page["title"]
+                # For our project, we will use redirects as a lookup table for valid article names,
+                # so a page redirects to itself.
+                redirects.extend([
+                    { "from": redirect["title"], "to": page_title }
+                    for redirect
+                    in page.get("redirects", [])
+                ])
+
+            if "continue" in res_json.keys():
+                params["rdcontinue"] = res_json["continue"]["rdcontinue"]
+            else:
+                break
+
+    return redirects
+
+
+def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
+    """
+    Fetches the titles of all Wikipedia articles with transcluded Airport destination list
+    templates.
+    A delay occurs between each request.
+    """
+    params = {
+            "action": "query",
+            "prop": "transcludedin",
+            "titles": "Template:Airport destination list",
+            "format": "json",
+            "formatversion": 2,
+            "tilimit": 500,
+            "tinamespace": 0
+        }
+    titles = []
+
+    while True:
+        res_json = mw_action_req_delayed(params, verbose=verbose)
+        res_titles = [page["title"] for page in res_json["query"]["pages"][0]["transcludedin"]]
+        titles.extend(res_titles)
+        if "continue" in res_json.keys():
+            params["ticontinue"] = res_json["continue"]["ticontinue"]
+        else:
+            break
+
+    return titles
 
 
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html
