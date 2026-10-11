@@ -1,5 +1,6 @@
 import mwparserfromhell as mwp
 from airport_wiki_scraper.airport import Airport
+import re
 
 def parse_airport_infobox(page: mwp.wikicode.Wikicode, title: str="") -> Airport:
     infobox = page.filter_templates(matches=r'(Infobox airport|Infobox aerodrome|Infobox Airport)')[0]
@@ -10,7 +11,8 @@ def parse_airport_infobox(page: mwp.wikicode.Wikicode, title: str="") -> Airport
         iata = str(iata.value).strip()
     try:
         coordinates = parse_coord(
-            infobox.get("coordinates").value.filter_templates(matches="coord")[0])
+            infobox.get("coordinates").value.filter_templates(
+                matches="coord", flags=re.IGNORECASE)[0])
     except:
         coordinates = None
 
