@@ -340,10 +340,10 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     for param in named_params:
         stripped_param_name = param.name.strip()
         # print(stripped_param_name)
-        # Check if 3rd or 4th columns are present
-        if stripped_param_name == "3rdcoltitle" and cols < 3:
+        # Check if 3rd or 4th columns are present; param value must be non-empty
+        if stripped_param_name == "3rdcoltitle" and param.value.strip() and cols < 3:
             cols = 3
-        elif stripped_param_name == "4thcoltitle" and cols < 4:
+        elif stripped_param_name == "4thcoltitle" and param.value.strip() and cols < 4:
             cols = 4
         elif stripped_param_name == "3rdcolunsortable" or stripped_param_name == "4thcolunsortable":
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
