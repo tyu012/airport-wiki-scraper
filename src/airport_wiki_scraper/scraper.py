@@ -253,6 +253,49 @@ def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
     return titles
 
 
+WD_AIRPORT_QUERY = """SELECT
+  ?item ?itemLabel
+  (SAMPLE(?icao_) as ?icao)
+  (SAMPLE(?iata_) as ?iata)
+  (SAMPLE(?article_) as ?article)
+  (SAMPLE(?coords_) as ?coords)
+WHERE
+{
+  ?item wdt:P239 ?icao_.
+  OPTIONAL { ?item wdt:P238 ?iata_. }
+  OPTIONAL { ?item wdt:P625 ?coords_. }
+  ?article_ schema:about ?item.
+  ?article_ schema:isPartOf <https://en.wikipedia.org/>.
+
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+}
+GROUP BY ?item ?itemLabel"""
+
+WD_SPARQL_API_URL = "https://query.wikidata.org/bigdata/namespace/wdq/sparql"
+
+def fetch_wd_airport_info(query: str=WD_AIRPORT_QUERY) -> list[dict]:
+    """
+    Fetches airport information from Wikidata, including all fields needed for the `Airport` class.
+
+    Only one entry is returned by the query per ICAO code, IATA code, article title, and coordinates.
+
+    A limitation is that a very small subset, less than 20 airports, may not return the latest
+    code after changes, since the preferred code is not designated.
+    """
+    if USER_AGENT == None:
+        raise RuntimeError("`MW_USER_AGENT` environment variable missing.")
+    headers = {
+        "User-Agent": USER_AGENT
+    }
+    params = {
+        "query": query,
+        "format": "json"
+    }
+    res = requests.get(WD_SPARQL_API_URL, headers=headers, params=params) 
+    res_json = res.json()
+    return res_json["results"]["bindings"]
+
+
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html
 def fetch_and_parse(title: str) -> mwp.wikicode.Wikicode:
     text = fetch(title)
