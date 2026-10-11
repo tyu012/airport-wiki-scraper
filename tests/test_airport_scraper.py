@@ -1,9 +1,12 @@
 import pytest
-from airport_wiki_scraper.airport_scraper import parse_coord, _dms_to_dec
+from airport_wiki_scraper.airport_scraper import parse_coord, _dms_to_dec, parse_airport_infobox
+from airport_wiki_scraper.airport import Airport
 import mwparserfromhell as mwp
+import re
 
 @pytest.mark.parametrize("wikitext, lat, long", [
     ("{{coord|0|0}}", (0, 0, 0, True), (0, 0, 0, True)),
+    ("{{Coord|0|0}}", (0, 0, 0, True), (0, 0, 0, True)),
     ("{{coord|25|15|10|N|055|21|52|E}}", (25, 15, 10, True), (55, 21, 52, True)),
     ("{{coord|25|15|display=title|10|N|055|21|52|E}}", (25, 15, 10, True), (55, 21, 52, True)),
     ("{{coord|25|15|10|S|55|21|52|W}}", (25, 15, 10, False), (55, 21, 52, False)),
@@ -18,10 +21,47 @@ import mwparserfromhell as mwp
     ("{{coord|-25.123|display=title|-55.456|unnamedparam}}", (25.123, 0, 0, False), (55.456, 0, 0, False)),
 ])
 def test_parse_coord(wikitext, lat, long):
-    template = mwp.parse(wikitext).filter_templates(matches="coord")[0]
+    template = mwp.parse(wikitext).filter_templates(matches="coord", flags=re.IGNORECASE)[0]
     exp_lat = _dms_to_dec(*lat)
     actual_lat = parse_coord(template)[0]
     exp_long = _dms_to_dec(*long)
     actual_long = parse_coord(template)[1]
     assert pytest.approx(exp_lat) == actual_lat
     assert pytest.approx(exp_long) == actual_long
+
+
+airport_a_title = "Los Angeles International Airport"
+airport_a_infobox = """{{Infobox airport
+| name              = Los Angeles International Airport
+| IATA              = LAX
+| ICAO              = KLAX
+| coordinates       = {{Coord|12.34|56.78}}
+}}"""
+airport_a_infobox_no_iata = """{{Infobox airport
+| name              = Los Angeles International Airport
+| ICAO              = KLAX
+| coordinates       = {{Coord|12.34|56.78}}
+}}"""
+airport_a_infobox_no_coord = """{{Infobox airport
+| name              = Los Angeles International Airport
+| IATA              = LAX
+| ICAO              = KLAX
+}}"""
+
+@pytest.mark.parametrize("infobox, title, expected", [
+    (airport_a_infobox,           airport_a_title,
+        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX", coordinates=(12.34, 56.78))),
+    (airport_a_infobox_no_iata,   airport_a_title,
+        Airport(icao="KLAX", wiki_title=airport_a_title, coordinates=(12.34, 56.78))),
+    (airport_a_infobox_no_coord,  airport_a_title,
+        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX"))
+])
+def test_parse_airport_infobox(infobox, title, expected: Airport):
+    parsed_infobox = parse_airport_infobox(mwp.parse(infobox), title)
+    assert parsed_infobox.icao == expected.icao, "matches ICAO"
+    assert parsed_infobox.wiki_title == expected.wiki_title, "matches wiki title"
+    assert parsed_infobox.iata == expected.iata, "matches IATA"
+    if expected.coordinates != None:
+        assert parsed_infobox.coordinates != None
+        assert pytest.approx(parsed_infobox.coordinates[0]) == expected.coordinates[0], "matches latitude"
+        assert pytest.approx(parsed_infobox.coordinates[1]) == expected.coordinates[1], "matches longitude"
