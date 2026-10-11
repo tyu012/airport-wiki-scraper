@@ -111,7 +111,7 @@ example_e_2col = """{{Airport destination list
 
 # Extraneous end parameters. i.e. George Airport
 example_e_2col_end = """{{Airport destination list
-| [[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]] |
 }}"""
 
 example_e_comment = """{{Airport destination list
@@ -139,6 +139,13 @@ example_e_operator = """{{Airport destination list
 
 example_e_op_for = """{{Airport destination list
 | [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
+}}"""
+
+# Some valid 3-col and 4-col APDLs lack ending 3rd/4th columns, leading to failure to parse final
+# rows due to identified misalignment, i.e. Kelleys Island Land Field 
+example_e_3col_empty = """{{Airport destination list
+|3rdcoltitle={{Abbr|Refs.|References}}|3rdcolunsortable=yes
+|[[Oceanic Airlines]] | [[Athens International Airport|Athens]]
 }}"""
 
 example_e_solutions = [
@@ -328,6 +335,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_nowrap_link,  example_e_solutions, "handles airline nowrap with wikilink"),
     (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
     (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
+    (example_e_3col_empty,   example_e_solutions, "handles empty last columns"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
     (example_h,              example_h_solutions, "other colon labels are ignored"),
