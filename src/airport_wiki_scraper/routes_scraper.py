@@ -340,10 +340,11 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     for param in named_params:
         stripped_param_name = param.name.strip()
         # print(stripped_param_name)
-        # Check if 3rd or 4th columns are present
-        if stripped_param_name == "3rdcoltitle" and cols < 3:
+        # Check if 3rd or 4th columns are present; param value must be non-empty since MediaWiki
+        # ignores empty params
+        if stripped_param_name == "3rdcoltitle" and param.value.strip() and cols < 3:
             cols = 3
-        elif stripped_param_name == "4thcoltitle" and cols < 4:
+        elif stripped_param_name == "4thcoltitle" and param.value.strip() and cols < 4:
             cols = 4
         elif stripped_param_name == "3rdcolunsortable" or stripped_param_name == "4thcolunsortable":
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
@@ -360,7 +361,10 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     # Process parameters in rows, so a misaligned row can be skipped as a whole
     rows = [unnamed_params[i:i + cols] for i in range(0, len(unnamed_params), cols)]
     for row in rows:
-        if len(row) < cols or not _could_be_airline(row[0]):
+        # To account for editors missing third columns at the end, and given that the parser will
+        # always divide the rows array into `cols` columns possibly except for the last few columns,
+        # we only need to check if len(row) < 2.
+        if len(row) < 2 or not _could_be_airline(row[0]):
             cells = [str(param.value).strip() for param in row]
             print(f"Warning: skipping misaligned row for '{origin}': {cells}")
             continue

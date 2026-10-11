@@ -74,6 +74,20 @@ example_b_4col_end = """{{Airport destination list
 |4thcoltitle=Notes|4thcolunsortable=yes
 }}"""
 
+# Empty 3rd/4th column parameters are not parsed
+example_b_noparam3 = """{{Airport destination list
+|3rdcoltitle=|3rdcolunsortable=
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/>
+| [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]
+}}"""
+
+example_b_noparam4 = """{{Airport destination list
+|3rdcoltitle=|3rdcolunsortable=
+|4thcoltitle=|4thcolunsortable=
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/>
+| [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]
+}}"""
+
 example_b_solutions = [
     # Uses simpler test cases, to test handling of 2 and 3 columns
     AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines"),
@@ -111,7 +125,7 @@ example_e_2col = """{{Airport destination list
 
 # Extraneous end parameters. i.e. George Airport
 example_e_2col_end = """{{Airport destination list
-| [[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]] |
 }}"""
 
 example_e_comment = """{{Airport destination list
@@ -140,6 +154,14 @@ example_e_operator = """{{Airport destination list
 example_e_op_for = """{{Airport destination list
 | [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
 }}"""
+
+# Some valid 3-col and 4-col APDLs lack ending 3rd/4th columns, leading to failure to parse final
+# rows due to identified misalignment, i.e. Kelleys Island Land Field 
+example_e_3col_empty = """{{Airport destination list
+|3rdcoltitle={{Abbr|Refs.|References}}|3rdcolunsortable=yes
+|[[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+}}"""
+
 
 example_e_solutions = [
     AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines"),
@@ -318,6 +340,8 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_b_3col_end,     example_b_solutions, "3 columns with named params at end"),
     (example_b_4col,         example_b_solutions, "4 columns"),
     (example_b_4col_end,     example_b_solutions, "4 columns with named params at end"),
+    (example_b_noparam3,     example_b_solutions, "Ignore empty 3rd col parameters"),
+    (example_b_noparam4,     example_b_solutions, "Ignore empty 4th col parameters"),
     (example_c_2col,         example_c_solutions, "test 'all suspended'"),
     (example_d_2col,         example_d_solutions, "test 'suspended until'"),
     (example_e_2col,         example_e_solutions, "airline not wikilink"),
@@ -328,6 +352,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_nowrap_link,  example_e_solutions, "handles airline nowrap with wikilink"),
     (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
     (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
+    (example_e_3col_empty,   example_e_solutions, "handles empty last columns"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
     (example_h,              example_h_solutions, "other colon labels are ignored"),
