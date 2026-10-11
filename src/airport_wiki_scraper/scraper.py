@@ -142,6 +142,7 @@ def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
             "prop": "transcludedin",
             "titles": "Template:Airport destination list",
             "format": "json",
+            "formatversion": 2,
             "tilimit": 500,
             "tinamespace": 0
         }
@@ -149,7 +150,7 @@ def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
 
     while True:
         res_json = mw_action_req_delayed(params, verbose=verbose)
-        res_titles = [page["title"] for page in res_json["query"]["pages"]["20184814"]["transcludedin"]]
+        res_titles = [page["title"] for page in res_json["query"]["pages"][0]["transcludedin"]]
         titles.extend(res_titles)
         if "continue" in res_json.keys():
             params["ticontinue"] = res_json["continue"]["ticontinue"]
