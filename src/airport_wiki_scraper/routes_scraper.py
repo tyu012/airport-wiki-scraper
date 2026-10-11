@@ -341,7 +341,7 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
         stripped_param_name = param.name.strip()
         # print(stripped_param_name)
         # Check if 3rd or 4th columns are present; param value must be non-empty since MediaWiki
-        # ignores empty columns
+        # ignores empty params
         if stripped_param_name == "3rdcoltitle" and param.value.strip() and cols < 3:
             cols = 3
         elif stripped_param_name == "4thcoltitle" and param.value.strip() and cols < 4:
