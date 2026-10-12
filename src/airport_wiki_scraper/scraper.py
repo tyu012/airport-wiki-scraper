@@ -131,32 +131,7 @@ def fetch_multiple_articles(titles: list[str]) -> list[dict[str, str | None]]:
     return _process_multiple_articles(res_json)
 
 
-def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
-    """
-    Fetches the titles of all Wikipedia articles with transcluded Airport destination list
-    templates.
-    A delay occurs between each request.
-    """
-    params = {
-            "action": "query",
-            "prop": "transcludedin",
-            "titles": "Template:Airport destination list",
-            "format": "json",
-            "tilimit": 500,
-            "tinamespace": 0
-        }
-    titles = []
 
-    while True:
-        res_json = mw_action_req_delayed(params, verbose=verbose)
-        res_titles = [page["title"] for page in res_json["query"]["pages"]["20184814"]["transcludedin"]]
-        titles.extend(res_titles)
-        if "continue" in res_json.keys():
-            params["ticontinue"] = res_json["continue"]["ticontinue"]
-        else:
-            break
-
-    return titles
     
 
 
@@ -199,6 +174,133 @@ def queue_fetch_articles(
                 wait_time = max(e.retry_after, random.random() * min_delay * (2 ** attempt) + min_delay)
                 sleep(wait_time)
     return texts
+
+
+def queue_fetch_redirects(
+    titles: list[str], verbose: bool=False
+) -> list[dict[str, str]]:
+    """
+    Fetches the articles that redirect to the articles with given titles.
+    Returns a list of dicts, each with the keys `"from"` and `"to"` which indicate the origin and
+    destination of the redirect.
+    """
+
+    redirects = []
+    titles_processed = [title.strip() for title in titles]
+
+    for lower_bound in range(0, len(titles_processed), 50):
+        # Re-specify params before each new set of articles to prevent rdcontinue from carrying over
+        params = {
+                "action": "query",
+                "prop": "redirects",
+                "format": "json",
+                "formatversion": 2,
+                "rdlimit": 500,
+                "rdnamespace": 0
+        }
+        params["titles"] = "|".join(titles_processed[lower_bound:lower_bound + 50])
+
+        # Has 50 articles - make an API call.
+        # Repeat until there are no more redirects within the 50 articles.
+        while True:
+            res_json = mw_action_req_delayed(params, verbose=verbose)
+            # Handle redirects
+            for page in res_json["query"]["pages"]:
+                page_title = page["title"]
+                # For our project, we will use redirects as a lookup table for valid article names,
+                # so a page redirects to itself.
+                redirects.extend([
+                    { "from": redirect["title"], "to": page_title }
+                    for redirect
+                    in page.get("redirects", [])
+                ])
+
+            if "continue" in res_json.keys():
+                params["rdcontinue"] = res_json["continue"]["rdcontinue"]
+            else:
+                break
+
+    return redirects
+
+
+def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
+    """
+    Fetches the titles of all Wikipedia articles with transcluded Airport destination list
+    templates.
+    A delay occurs between each request.
+    """
+    params = {
+            "action": "query",
+            "prop": "transcludedin",
+            "titles": "Template:Airport destination list",
+            "format": "json",
+            "formatversion": 2,
+            "tilimit": 500,
+            "tinamespace": 0
+        }
+    titles = []
+
+    while True:
+        res_json = mw_action_req_delayed(params, verbose=verbose)
+        res_titles = [page["title"] for page in res_json["query"]["pages"][0]["transcludedin"]]
+        titles.extend(res_titles)
+        if "continue" in res_json.keys():
+            params["ticontinue"] = res_json["continue"]["ticontinue"]
+        else:
+            break
+
+    return titles
+
+
+WD_AIRPORT_QUERY = """SELECT
+  ?item ?itemLabel
+  (SAMPLE(?icao_) as ?icao)
+  (SAMPLE(?iata_) as ?iata)
+  (SAMPLE(?article_) as ?article)
+  (SAMPLE(?coords_) as ?coords)
+WHERE
+{
+  VALUES ?other_airports {
+    wd:Q94993988 wd:Q62447 wd:Q695850 wd:Q131520524 wd:Q3143713 wd:Q2516330 wd:Q502074 wd:Q2301048 wd:Q7373622
+  }
+  
+  { ?item wdt:P31/wdt:P279* wd:Q1248784 }
+  UNION
+  { ?item wdt:P31 ?other_airports }
+  
+  ?article_ schema:about ?item.
+  ?article_ schema:isPartOf <https://en.wikipedia.org/>.
+  OPTIONAL { ?item wdt:P239 ?icao_. }
+  OPTIONAL { ?item wdt:P238 ?iata_. }
+  OPTIONAL { ?item wdt:P625 ?coords_. }
+
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+}
+GROUP BY ?item ?itemLabel"""
+
+WD_SPARQL_API_URL = "https://query.wikidata.org/bigdata/namespace/wdq/sparql"
+
+def fetch_wd_airport_info(query: str=WD_AIRPORT_QUERY) -> list[dict]:
+    """
+    Fetches airport information from Wikidata, including all fields needed for the `Airport` class.
+
+    Only one entry is returned by the query per ICAO code, IATA code, article title, and coordinates.
+
+    A limitation is that a very small subset, less than 20 airports, may not return the latest
+    code after changes, since the preferred code is not designated.
+    """
+    if USER_AGENT == None:
+        raise RuntimeError("`MW_USER_AGENT` environment variable missing.")
+    headers = {
+        "User-Agent": USER_AGENT
+    }
+    params = {
+        "query": query,
+        "format": "json"
+    }
+    res = requests.get(WD_SPARQL_API_URL, headers=headers, params=params) 
+    res_json = res.json()
+    return res_json["results"]["bindings"]
 
 
 # Adapted from https://mwparserfromhell.readthedocs.io/en/latest/usage.html

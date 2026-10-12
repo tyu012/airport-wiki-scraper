@@ -5,6 +5,7 @@ from airport_wiki_scraper.airroute import AirRoute
 from datetime import datetime
 import dateutil.parser as dparser
 import pytest
+from airport_wiki_scraper.utils import strip_ref_tags
 
 # Below examples adapted from:
 # Template:Airport_destination_list
@@ -21,31 +22,31 @@ example_a_2col = """{{Airport destination list
 
 example_a_solutions = [
     # A regular test case
-    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines"),
 
     # Case with begin date and uses date template
-    AirRoute(ORIGIN, "Los Angeles International Airport", "Oceanic Airlines", begins=datetime(2026, 10, 1)),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines", begins=datetime(2026, 10, 1)),
 
     # Case with end date and uses date in plain text
-    AirRoute(ORIGIN, "Sydney Airport", "Oceanic Airlines", ends=datetime(2018, 3, 1)),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines", ends=datetime(2018, 3, 1)),
 
     # Suspended flight
-    AirRoute(ORIGIN, "Dulles International Airport", "Oceanic Airlines", suspended=True),
+    AirRoute(origin=ORIGIN, destination="Dulles International Airport", airline="Oceanic Airlines", suspended=True),
 
     # Charter flight
-    AirRoute(ORIGIN, "Calvi – Sainte-Catherine Airport", "Oceanic Airlines", charter=True),
+    AirRoute(origin=ORIGIN, destination="Calvi – Sainte-Catherine Airport", airline="Oceanic Airlines", charter=True),
 
     # Test handling of multiple charter flights grouped together
-    AirRoute(ORIGIN, "Dublin Airport", "Oceanic Airlines", charter=True),
+    AirRoute(origin=ORIGIN, destination="Dublin Airport", airline="Oceanic Airlines", charter=True),
 
     # Seasonal charter flight, uses italics formatting for seasonal charter label
-    AirRoute(ORIGIN, "Grand Bahama International Airport", "Oceanic Airlines", seasonal=True, charter=True),
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Oceanic Airlines", seasonal=True, charter=True),
 
     # Test second airline, seasonal and charter flags should be reset
-    AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines", resumes=datetime(2023, 5, 12)),
+    AirRoute(origin=ORIGIN, destination="Miami International Airport", airline="Puño Airlines", resumes=datetime(2023, 5, 12)),
 
     # Seasonal flight, uses italics formatting for seasonal label
-    AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Puño Airlines", seasonal=True)
 ]
 
 example_b_3col = """{{Airport destination list
@@ -74,14 +75,28 @@ example_b_4col_end = """{{Airport destination list
 |4thcoltitle=Notes|4thcolunsortable=yes
 }}"""
 
+# Empty 3rd/4th column parameters are not parsed
+example_b_noparam3 = """{{Airport destination list
+|3rdcoltitle=|3rdcolunsortable=
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/>
+| [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]
+}}"""
+
+example_b_noparam4 = """{{Airport destination list
+|3rdcoltitle=|3rdcolunsortable=
+|4thcoltitle=|4thcolunsortable=
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]],<ref>Ref 1</ref> [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/>
+| [[Puño Airlines]] | [[Miami International Airport|Miami]] <br/> {{em|Seasonal:}} [[Grand Bahama International Airport|Freeport]]
+}}"""
+
 example_b_solutions = [
     # Uses simpler test cases, to test handling of 2 and 3 columns
-    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
-    AirRoute(ORIGIN, "Los Angeles International Airport", "Oceanic Airlines"),
-    AirRoute(ORIGIN, "Sydney Airport", "Oceanic Airlines"),
-    AirRoute(ORIGIN, "Dulles International Airport", "Oceanic Airlines"),
-    AirRoute(ORIGIN, "Miami International Airport", "Puño Airlines"),
-    AirRoute(ORIGIN, "Grand Bahama International Airport", "Puño Airlines", seasonal=True)
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Dulles International Airport", airline="Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Miami International Airport", airline="Puño Airlines"),
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Puño Airlines", seasonal=True)
 ]
 
 example_c_2col = """{{Airport destination list
@@ -90,9 +105,9 @@ example_c_2col = """{{Airport destination list
 
 example_c_solutions = [
     # Tests "all suspended"
-    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
-    AirRoute(ORIGIN, "Los Angeles International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
-    AirRoute(ORIGIN, "Sydney Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
 ]
 
 example_d_2col = """{{Airport destination list
@@ -101,7 +116,7 @@ example_d_2col = """{{Airport destination list
 
 example_d_solutions = [
     # Tests "suspended until + date"
-    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines", resumes=datetime(2026, 10, 24), suspended=True),
 ]
 
 # Airline without wikilink
@@ -111,7 +126,7 @@ example_e_2col = """{{Airport destination list
 
 # Extraneous end parameters. i.e. George Airport
 example_e_2col_end = """{{Airport destination list
-| [[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]] |
 }}"""
 
 example_e_comment = """{{Airport destination list
@@ -141,8 +156,21 @@ example_e_op_for = """{{Airport destination list
 | [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
 }}"""
 
+# Template outside of ref tag
+example_e_templ = """{{Airport destination list
+| Oceanic Airlines | [[Athens International Airport|Athens]] {{independent source needed|date=January 2026}}
+}}"""
+
+# Some valid 3-col and 4-col APDLs lack ending 3rd/4th columns, leading to failure to parse final
+# rows due to identified misalignment, i.e. Kelleys Island Land Field 
+example_e_3col_empty = """{{Airport destination list
+|3rdcoltitle={{Abbr|Refs.|References}}|3rdcolunsortable=yes
+|[[Oceanic Airlines]] | [[Athens International Airport|Athens]]
+}}"""
+
+
 example_e_solutions = [
-    AirRoute(ORIGIN, "Athens International Airport", "Oceanic Airlines"),
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines"),
 ]
 
 # Right column parameter split across two lines -- MW parses correctly but not mwparserfromhell
@@ -153,7 +181,7 @@ example_f = """{{airport-dest-list
 """
 
 example_f_solutions = [
-    AirRoute(ORIGIN, "Budapest Ferenc Liszt International Airport", "Ryanair")
+    AirRoute(origin=ORIGIN, destination="Budapest Ferenc Liszt International Airport", airline="Ryanair")
 ]
 
 # Airports that lack wikilinks, i.e. Rubondo Airstrip
@@ -161,9 +189,9 @@ example_g = """{{airport-dest-list
 | {{nowrap|[[Coastal Aviation]]}} | Grumeti, Kogatende, [[Lake Manyara Airport|Manyara]]}}"""
 
 example_g_solutions = [
-    AirRoute(ORIGIN, "Grumeti", "Coastal Aviation"),
-    AirRoute(ORIGIN, "Kogatende", "Coastal Aviation"),
-    AirRoute(ORIGIN, "Lake Manyara Airport", "Coastal Aviation")
+    AirRoute(origin=ORIGIN, destination="Grumeti", airline="Coastal Aviation"),
+    AirRoute(origin=ORIGIN, destination="Kogatende", airline="Coastal Aviation"),
+    AirRoute(origin=ORIGIN, destination="Lake Manyara Airport", airline="Coastal Aviation")
 ]
 
 # Airports with labels like "Charter" and "Seasonal" but for other purposes.
@@ -171,7 +199,7 @@ example_h = """{{Airport destination list
 |[[Eagle Air Services]]|'''Cropdusting:''' [[Saramacca District|Saramacca]]}}"""
 
 example_h_solutions = [
-    AirRoute(ORIGIN, "Saramacca District", "Eagle Air Services")
+    AirRoute(origin=ORIGIN, destination="Saramacca District", airline="Eagle Air Services")
 ]
 
 # Template name variations, i.e. Jumla Airport
@@ -182,7 +210,23 @@ example_i_underscore = """{{Airport_destination_list
 | [[Nepal Airlines]] | [[Nepalgunj Airport|Nepalgunj]]}}"""
 
 example_i_solutions = [
-    AirRoute(ORIGIN, "Nepalgunj Airport", "Nepal Airlines")
+    AirRoute(origin=ORIGIN, destination="Nepalgunj Airport", airline="Nepal Airlines")
+]
+
+# Test "both end" and "all end" handling
+example_j = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]], [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> (all end 12 December 2026)
+| [[Puño Airlines]] | [[Miami International Airport|Miami]], [[Grand Bahama International Airport|Freeport]] (both end 1 March 2027)
+}}"""
+
+example_j_solutions = [
+    # Uses simpler test cases, to test handling of 2 and 3 columns
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Dulles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Miami International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1)),
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1))
 ]
 
 example_page = """{{Infobox airport}}
@@ -296,7 +340,7 @@ example_dsm = """{{Airport destination list
     (example_page_cargo_3,    False, True, 0, 2)
 ])
 def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     p, c = get_apdl(parsed)
     if has_passenger:
         assert type(p) == mwp.nodes.Template
@@ -318,6 +362,8 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_b_3col_end,     example_b_solutions, "3 columns with named params at end"),
     (example_b_4col,         example_b_solutions, "4 columns"),
     (example_b_4col_end,     example_b_solutions, "4 columns with named params at end"),
+    (example_b_noparam3,     example_b_solutions, "Ignore empty 3rd col parameters"),
+    (example_b_noparam4,     example_b_solutions, "Ignore empty 4th col parameters"),
     (example_c_2col,         example_c_solutions, "test 'all suspended'"),
     (example_d_2col,         example_d_solutions, "test 'suspended until'"),
     (example_e_2col,         example_e_solutions, "airline not wikilink"),
@@ -328,14 +374,17 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_nowrap_link,  example_e_solutions, "handles airline nowrap with wikilink"),
     (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
     (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
+    (example_e_3col_empty,   example_e_solutions, "handles empty last columns"),
+    (example_e_templ,        example_e_solutions, "handles templates"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
     (example_h,              example_h_solutions, "other colon labels are ignored"),
     (example_i_whitespace,   example_i_solutions, "template name with whitespace"),
     (example_i_underscore,   example_i_solutions, "template name with underscore replacing space"),
+    (example_j,              example_j_solutions, "handles 'both end' and 'all end'")
 ])
 def test_extract_apdl(input, expected, name):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     passenger, _ = get_apdl(parsed)
     assert passenger != None
     results = extract_apdl(passenger, ORIGIN)

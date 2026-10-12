@@ -7,6 +7,8 @@ from airport_wiki_scraper.airroute import AirRoute
 from airport_wiki_scraper.scraper import fetch_and_parse
 import re
 
+from airport_wiki_scraper.utils import strip_ref_tags
+
 
 def get_apdl(
     page: mwp.wikicode.Wikicode, verbose=False
@@ -19,11 +21,13 @@ def get_apdl(
     contains a passenger list.
     - Assume that the article contains at least one airport destination list.
 
+    The caller is expected to strip ref tags from the page using `utils.strip_ref_tags`.
+
     NOTE: Cargo information on Wikipedia is generally incomplete compared to passenger information.
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
 
-    page = mwp.parse(strip_ref_tags(str(page)))
+    page = mwp.parse(page)
 
     regex = r"(Airlines and Destinations|Passenger|Cargo|\{\{\s*Airport([ _]destination[ _]list|-dest-list))"
     filtered_items = page.filter(recursive=True, matches=regex, flags=re.IGNORECASE)
@@ -151,13 +155,16 @@ def interpret_dests(
                 parse_date(lowertext, iterator),
                 apply_all)
 
-        elif "ends" in lowertext or "ending" in lowertext:
+        elif "ends" in lowertext or "ending" in lowertext or "both end" in lowertext or "all end" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
                 parse_date(lowertext, iterator),
                 apply_all)
 
+        elif isinstance(node, mwp.nodes.Template):
+            # do nothing
+            pass
 
         else:
             # Other text, assume airports without wikilink 
@@ -234,29 +241,7 @@ def process_date_str(date_str: str) -> str:
     return processed_date_str.strip()
 
 
-REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
-REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
-REF_MALFORMED_RE = re.compile(r"<ref\b[^<>]*?/\s*(?=<|$)", re.IGNORECASE)
 
-
-def strip_ref_tags(text: str, origin: str = "") -> str:
-    """
-    Removes <ref> tags from wikitext before it is parsed as a template.
-
-    Reference tags are irrelevant to route extraction, but when their markup is malformed (e.g. a
-    missing ">" in `<ref name="x"/<ref>`), the "=" characters inside their contents can leak into
-    template parameter boundaries and shift every subsequent row. Malformed fragments are reported
-    as warnings since they are likely editing errors worth fixing on Wikipedia.
-    """
-    malformed = REF_MALFORMED_RE.findall(text)
-    if malformed:
-        print(f"Warning: malformed ref tag(s) for '{origin}': {malformed}")
-    # Self-closing refs must be removed before paired refs, otherwise a self-closing tag such as
-    # `<ref name=x/>` is mistaken for an opening tag and swallows content up to the next `</ref>`.
-    text = REF_SELF_CLOSING_RE.sub("", text)
-    text = REF_PAIRED_RE.sub("", text)
-    text = REF_MALFORMED_RE.sub("", text)
-    return text
 
 
 def _could_be_airline(param: mwp.nodes.extras.Parameter) -> bool:
@@ -340,10 +325,11 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     for param in named_params:
         stripped_param_name = param.name.strip()
         # print(stripped_param_name)
-        # Check if 3rd or 4th columns are present
-        if stripped_param_name == "3rdcoltitle" and cols < 3:
+        # Check if 3rd or 4th columns are present; param value must be non-empty since MediaWiki
+        # ignores empty params
+        if stripped_param_name == "3rdcoltitle" and param.value.strip() and cols < 3:
             cols = 3
-        elif stripped_param_name == "4thcoltitle" and cols < 4:
+        elif stripped_param_name == "4thcoltitle" and param.value.strip() and cols < 4:
             cols = 4
         elif stripped_param_name == "3rdcolunsortable" or stripped_param_name == "4thcolunsortable":
             # No action needed, since 3rdcoltitle and 4thcoltitle indicate column count
@@ -360,7 +346,10 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
     # Process parameters in rows, so a misaligned row can be skipped as a whole
     rows = [unnamed_params[i:i + cols] for i in range(0, len(unnamed_params), cols)]
     for row in rows:
-        if len(row) < cols or not _could_be_airline(row[0]):
+        # To account for editors missing third columns at the end, and given that the parser will
+        # always divide the rows array into `cols` columns possibly except for the last few columns,
+        # we only need to check if len(row) < 2.
+        if len(row) < 2 or not _could_be_airline(row[0]):
             cells = [str(param.value).strip() for param in row]
             print(f"Warning: skipping misaligned row for '{origin}': {cells}")
             continue
