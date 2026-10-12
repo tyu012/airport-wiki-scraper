@@ -213,6 +213,22 @@ example_i_solutions = [
     AirRoute(origin=ORIGIN, destination="Nepalgunj Airport", airline="Nepal Airlines")
 ]
 
+# Test "both end" and "all end" handling
+example_j = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]], [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> (all end 12 December 2026)
+| [[Puño Airlines]] | [[Miami International Airport|Miami]], [[Grand Bahama International Airport|Freeport]] (both end 1 March 2027)
+}}"""
+
+example_j_solutions = [
+    # Uses simpler test cases, to test handling of 2 and 3 columns
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Dulles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Miami International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1)),
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1))
+]
+
 example_page = """{{Infobox airport}}
 =Airlines and Destinations=
 ==Passenger==
@@ -365,6 +381,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_h,              example_h_solutions, "other colon labels are ignored"),
     (example_i_whitespace,   example_i_solutions, "template name with whitespace"),
     (example_i_underscore,   example_i_solutions, "template name with underscore replacing space"),
+    (example_j,              example_j_solutions, "handles 'both end' and 'all end'")
 ])
 def test_extract_apdl(input, expected, name):
     parsed = parse(strip_ref_tags(input))

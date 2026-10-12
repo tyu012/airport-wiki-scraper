@@ -155,7 +155,7 @@ def interpret_dests(
                 parse_date(lowertext, iterator),
                 apply_all)
 
-        elif "ends" in lowertext or "ending" in lowertext or "both end" in lowertext:
+        elif "ends" in lowertext or "ending" in lowertext or "both end" in lowertext or "all end" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
