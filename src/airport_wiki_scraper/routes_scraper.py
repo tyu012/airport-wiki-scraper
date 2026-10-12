@@ -155,13 +155,16 @@ def interpret_dests(
                 parse_date(lowertext, iterator),
                 apply_all)
 
-        elif "ends" in lowertext or "ending" in lowertext:
+        elif "ends" in lowertext or "ending" in lowertext or "both end" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
                 parse_date(lowertext, iterator),
                 apply_all)
 
+        elif isinstance(node, mwp.nodes.Template):
+            # do nothing
+            pass
 
         else:
             # Other text, assume airports without wikilink 

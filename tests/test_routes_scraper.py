@@ -156,6 +156,11 @@ example_e_op_for = """{{Airport destination list
 | [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
 }}"""
 
+# Template outside of ref tag
+example_e_templ = """{{Airport destination list
+| Oceanic Airlines | [[Athens International Airport|Athens]] {{independent source needed|date=January 2026}}
+}}"""
+
 # Some valid 3-col and 4-col APDLs lack ending 3rd/4th columns, leading to failure to parse final
 # rows due to identified misalignment, i.e. Kelleys Island Land Field 
 example_e_3col_empty = """{{Airport destination list
@@ -354,6 +359,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
     (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
     (example_e_3col_empty,   example_e_solutions, "handles empty last columns"),
+    (example_e_templ,        example_e_solutions, "handles templates"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
     (example_h,              example_h_solutions, "other colon labels are ignored"),

@@ -39,3 +39,12 @@ def write_pydantic_jsonl(values: list, path: str | os.PathLike[str]):
     """
     with open(path, "w") as f:
         f.writelines([v.model_dump_json() + "\n" for v in values])
+
+
+def load_pydantic_jsonl(path: str | os.PathLike[str], model) -> list:
+    """
+    Open a .jsonl file representing objects of a Pydantic model class and return objects as a list
+    """
+    with open(path, "r") as f:
+        values = [model.model_validate_json(line.strip()) for line in f.readlines()]
+    return values

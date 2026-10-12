@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import datetime as dt
+from typing import Annotated
 
 class AirRoute(BaseModel):
     """
@@ -15,16 +16,15 @@ class AirRoute(BaseModel):
     ends: dt.datetime | None = None
     suspended: bool = False
 
-
 class AirRouteID(BaseModel):
     """
     Contains all fields of AirRoute, but with added Wikidata QID fields for origin and destination
     airports.
     """
     origin: str
-    origin_qid: str
+    origin_qid: Annotated[str, Field(pattern=r"^Q[1-9][0-9]*$")]
     destination: str
-    destination_qid: str
+    destination_qid: Annotated[str, Field(pattern=r"^Q[1-9][0-9]*$")]
     airline: str = ""
     seasonal: bool = False
     charter: bool = False
