@@ -1,20 +1,26 @@
 import mwparserfromhell as mwp
 from airport_wiki_scraper.airport import Airport
+import re
+from airport_wiki_scraper.utils import strip_ref_tags
 
-def parse_airport_infobox(page: mwp.wikicode.Wikicode, title: str="") -> Airport:
-    infobox = page.filter_templates(matches=r'(Infobox airport|Infobox aerodrome|Infobox Airport)')[0]
-    print(infobox.params)
-    icao = str(infobox.get("ICAO").value).strip()
-    iata = infobox.get("IATA", None)
-    if iata != None:
-        iata = str(iata.value).strip()
+def parse_airport_infobox(page: mwp.wikicode.Wikicode, qid:str, title: str="") -> Airport:
+    page = mwp.parse(page) 
+    infobox = page.filter_templates(
+        matches=r'\s*(Infobox (airport|aerodrome|military installation))\s*', flags=re.IGNORECASE)[0]
+
+    # For special cases, return only the first 3 or 4 characters
+    icao = str(infobox.get("ICAO").value).strip()[:4]
+    iata = str(infobox.get("IATA").value).strip()[:3] if infobox.has_param("IATA") else None
+
     try:
         coordinates = parse_coord(
-            infobox.get("coordinates").value.filter_templates(matches="coord")[0])
+            infobox.get("coordinates").value.filter_templates(
+                matches="coord", flags=re.IGNORECASE)[0])
     except:
         coordinates = None
 
     return Airport(
+        qid=qid,
         icao=icao,
         iata=iata,
         wiki_title=title,

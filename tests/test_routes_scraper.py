@@ -5,6 +5,7 @@ from airport_wiki_scraper.airroute import AirRoute
 from datetime import datetime
 import dateutil.parser as dparser
 import pytest
+from airport_wiki_scraper.utils import strip_ref_tags
 
 # Below examples adapted from:
 # Template:Airport_destination_list
@@ -155,6 +156,11 @@ example_e_op_for = """{{Airport destination list
 | [[Oceanic Airlines]] for [[Another Airline]] | [[Athens International Airport|Athens]]
 }}"""
 
+# Template outside of ref tag
+example_e_templ = """{{Airport destination list
+| Oceanic Airlines | [[Athens International Airport|Athens]] {{independent source needed|date=January 2026}}
+}}"""
+
 # Some valid 3-col and 4-col APDLs lack ending 3rd/4th columns, leading to failure to parse final
 # rows due to identified misalignment, i.e. Kelleys Island Land Field 
 example_e_3col_empty = """{{Airport destination list
@@ -205,6 +211,22 @@ example_i_underscore = """{{Airport_destination_list
 
 example_i_solutions = [
     AirRoute(origin=ORIGIN, destination="Nepalgunj Airport", airline="Nepal Airlines")
+]
+
+# Test "both end" and "all end" handling
+example_j = """{{Airport destination list
+| [[Oceanic Airlines]] | [[Athens International Airport|Athens]], [[Los Angeles International Airport|Los Angeles]],<ref name=LA>Ref 2</ref> [[Sydney Airport|Sydney]],<ref>Ref 3</ref> [[Dulles International Airport|Washington–Dulles]]<ref name=LA/> (all end 12 December 2026)
+| [[Puño Airlines]] | [[Miami International Airport|Miami]], [[Grand Bahama International Airport|Freeport]] (both end 1 March 2027)
+}}"""
+
+example_j_solutions = [
+    # Uses simpler test cases, to test handling of 2 and 3 columns
+    AirRoute(origin=ORIGIN, destination="Athens International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Los Angeles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Sydney Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Dulles International Airport", airline="Oceanic Airlines", ends=datetime(2026, 12, 12)),
+    AirRoute(origin=ORIGIN, destination="Miami International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1)),
+    AirRoute(origin=ORIGIN, destination="Grand Bahama International Airport", airline="Puño Airlines", ends=datetime(2027, 3, 1))
 ]
 
 example_page = """{{Infobox airport}}
@@ -318,7 +340,7 @@ example_dsm = """{{Airport destination list
     (example_page_cargo_3,    False, True, 0, 2)
 ])
 def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     p, c = get_apdl(parsed)
     if has_passenger:
         assert type(p) == mwp.nodes.Template
@@ -353,14 +375,16 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_e_operator,     example_e_solutions, "handles non-compliant airline with operators"),
     (example_e_op_for,       example_e_solutions, "handles non-compliant airline cols with 'for'"),
     (example_e_3col_empty,   example_e_solutions, "handles empty last columns"),
+    (example_e_templ,        example_e_solutions, "handles templates"),
     (example_f,              example_f_solutions, "parameter across line break quirk"),
     (example_g,              example_g_solutions, "airports without wikilinks"),
     (example_h,              example_h_solutions, "other colon labels are ignored"),
     (example_i_whitespace,   example_i_solutions, "template name with whitespace"),
     (example_i_underscore,   example_i_solutions, "template name with underscore replacing space"),
+    (example_j,              example_j_solutions, "handles 'both end' and 'all end'")
 ])
 def test_extract_apdl(input, expected, name):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     passenger, _ = get_apdl(parsed)
     assert passenger != None
     results = extract_apdl(passenger, ORIGIN)
