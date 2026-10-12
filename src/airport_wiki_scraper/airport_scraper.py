@@ -3,8 +3,8 @@ from airport_wiki_scraper.airport import Airport
 import re
 from airport_wiki_scraper.utils import strip_ref_tags
 
-def parse_airport_infobox(page: mwp.wikicode.Wikicode, title: str="") -> Airport:
-    page = mwp.parse(strip_ref_tags(str(page))) 
+def parse_airport_infobox(page: mwp.wikicode.Wikicode, qid:str, title: str="") -> Airport:
+    page = mwp.parse(page) 
     infobox = page.filter_templates(
         matches=r'\s*(Infobox (airport|aerodrome|military installation))\s*', flags=re.IGNORECASE)[0]
 
@@ -20,6 +20,7 @@ def parse_airport_infobox(page: mwp.wikicode.Wikicode, title: str="") -> Airport
         coordinates = None
 
     return Airport(
+        qid=qid,
         icao=icao,
         iata=iata,
         wiki_title=title,

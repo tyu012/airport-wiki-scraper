@@ -21,11 +21,13 @@ def get_apdl(
     contains a passenger list.
     - Assume that the article contains at least one airport destination list.
 
+    The caller is expected to strip ref tags from the page using `utils.strip_ref_tags`.
+
     NOTE: Cargo information on Wikipedia is generally incomplete compared to passenger information.
     Therefore, the project is currently scoped towards scheduled passenger flights.
     """
 
-    page = mwp.parse(strip_ref_tags(str(page)))
+    page = mwp.parse(page)
 
     regex = r"(Airlines and Destinations|Passenger|Cargo|\{\{\s*Airport([ _]destination[ _]list|-dest-list))"
     filtered_items = page.filter(recursive=True, matches=regex, flags=re.IGNORECASE)

@@ -1,4 +1,6 @@
 import re
+from pydantic import BaseModel
+import os
 
 REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
 REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
@@ -22,3 +24,18 @@ def strip_ref_tags(text: str, origin: str = "") -> str:
     text = REF_PAIRED_RE.sub("", text)
     text = REF_MALFORMED_RE.sub("", text)
     return text
+
+
+def str_validate_or_none(regex):
+    """
+    Generates a validator function that validates a string, or returns None if invalid
+    """
+    return (lambda value: value if isinstance(value, str) and re.fullmatch(regex, value) else None)
+
+
+def write_pydantic_jsonl(values: list, path: str | os.PathLike[str]):
+    """
+    Write a list of Pydantic model objects to .jsonl format
+    """
+    with open(path, "w") as f:
+        f.writelines([v.model_dump_json() + "\n" for v in values])

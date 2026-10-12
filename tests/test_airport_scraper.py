@@ -3,6 +3,7 @@ from airport_wiki_scraper.airport_scraper import parse_coord, _dms_to_dec, parse
 from airport_wiki_scraper.airport import Airport
 import mwparserfromhell as mwp
 import re
+from airport_wiki_scraper.utils import strip_ref_tags
 
 @pytest.mark.parametrize("wikitext, lat, long", [
     ("{{coord|0|0}}", (0, 0, 0, True), (0, 0, 0, True)),
@@ -57,20 +58,21 @@ airport_c_infobox = """{{Infobox military installation
 | IATA                   = RIV
 | ICAO                   = KRIV}}"""
 
+DUMMY_QID = "Q123"
 @pytest.mark.parametrize("infobox, title, expected", [
     (airport_a_infobox,           airport_a_title,
-        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX", coordinates=(12.34, 56.78))),
+        Airport(qid=DUMMY_QID, icao="KLAX", wiki_title=airport_a_title, iata="LAX", coordinates=(12.34, 56.78))),
     (airport_a_infobox_no_iata,   airport_a_title,
-        Airport(icao="KLAX", wiki_title=airport_a_title, coordinates=(12.34, 56.78))),
+        Airport(qid=DUMMY_QID, icao="KLAX", wiki_title=airport_a_title, coordinates=(12.34, 56.78))),
     (airport_a_infobox_no_coord,  airport_a_title,
-        Airport(icao="KLAX", wiki_title=airport_a_title, iata="LAX")),
+        Airport(qid=DUMMY_QID, icao="KLAX", wiki_title=airport_a_title, iata="LAX")),
     (airport_b_infobox, airport_b_title,
-        Airport(icao="LFSB", wiki_title=airport_b_title)),
+        Airport(qid=DUMMY_QID, icao="LFSB", wiki_title=airport_b_title)),
     (airport_c_infobox, airport_c_title,
-        Airport(icao="KRIV", wiki_title=airport_c_title, iata="RIV"))
+        Airport(qid=DUMMY_QID, icao="KRIV", wiki_title=airport_c_title, iata="RIV"))
 ])
 def test_parse_airport_infobox(infobox, title, expected: Airport):
-    parsed_infobox = parse_airport_infobox(mwp.parse(infobox), title)
+    parsed_infobox = parse_airport_infobox(mwp.parse(strip_ref_tags(infobox)), DUMMY_QID, title)
     assert parsed_infobox.icao == expected.icao, "matches ICAO"
     assert parsed_infobox.wiki_title == expected.wiki_title, "matches wiki title"
     assert parsed_infobox.iata == expected.iata, "matches IATA"

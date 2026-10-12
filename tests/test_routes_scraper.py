@@ -5,6 +5,7 @@ from airport_wiki_scraper.airroute import AirRoute
 from datetime import datetime
 import dateutil.parser as dparser
 import pytest
+from airport_wiki_scraper.utils import strip_ref_tags
 
 # Below examples adapted from:
 # Template:Airport_destination_list
@@ -318,7 +319,7 @@ example_dsm = """{{Airport destination list
     (example_page_cargo_3,    False, True, 0, 2)
 ])
 def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     p, c = get_apdl(parsed)
     if has_passenger:
         assert type(p) == mwp.nodes.Template
@@ -360,7 +361,7 @@ def test_get_apdl(input, has_passenger, has_cargo, pass_params, cargo_params):
     (example_i_underscore,   example_i_solutions, "template name with underscore replacing space"),
 ])
 def test_extract_apdl(input, expected, name):
-    parsed = parse(input)
+    parsed = parse(strip_ref_tags(input))
     passenger, _ = get_apdl(parsed)
     assert passenger != None
     results = extract_apdl(passenger, ORIGIN)

@@ -261,11 +261,19 @@ WD_AIRPORT_QUERY = """SELECT
   (SAMPLE(?coords_) as ?coords)
 WHERE
 {
-  ?item wdt:P239 ?icao_.
-  OPTIONAL { ?item wdt:P238 ?iata_. }
-  OPTIONAL { ?item wdt:P625 ?coords_. }
+  VALUES ?other_airports {
+    wd:Q94993988 wd:Q62447 wd:Q695850 wd:Q131520524 wd:Q3143713 wd:Q2516330 wd:Q502074 wd:Q2301048 wd:Q7373622
+  }
+  
+  { ?item wdt:P31/wdt:P279* wd:Q1248784 }
+  UNION
+  { ?item wdt:P31 ?other_airports }
+  
   ?article_ schema:about ?item.
   ?article_ schema:isPartOf <https://en.wikipedia.org/>.
+  OPTIONAL { ?item wdt:P239 ?icao_. }
+  OPTIONAL { ?item wdt:P238 ?iata_. }
+  OPTIONAL { ?item wdt:P625 ?coords_. }
 
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
