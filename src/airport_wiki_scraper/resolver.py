@@ -8,72 +8,85 @@ import json
 import re
 
 
-def resolve_airport_data(
-    titles_path: str | os.PathLike[str],
+def extract_airport_data(
     wd_path: str | os.PathLike[str],
-    articles_path: str | os.PathLike[str] | None=None,
     verbose: bool=False
 ) -> list[Airport]:
     """
-    Attempts to resolve data for each airport on `titles_path` (a txt file with each airport
-    on its separate line) using the following files:
+    Extracts Wikidata airport data fetched from `scraper.fetch_wd_airport_info` and returns a list.
 
     - `wd_path`: a .jsonl file serialized from data fetched from Wikidata with the function
     `scraper.fetch_wd_airport_info`
-    - TODO: `articles_path`: optionally, the .jsonl file serialized from
-    `scraper.queue_fetch_articles`
-        - This is low-priority since the current method only fails to resolve Wikidata entries of
-        ~20 out of 4,000+ pages.
     """
-    # Load Wikidata data into a Wikipedia title-indexed dict for faster retrieval
-    wd_dict = _load_wd_airports_jsonl(wd_path)
 
     airports_resolved = []
 
     # Read each airport in the file at titles_path and attempt to resolve:
-    with open(titles_path, "r") as titles:
-        for title in titles:
-            stripped_title = title.strip()
-            try:
-                wd_airport = wd_dict[stripped_title]
+    with open(wd_path, "r") as wd_airports:
+        for airport_json in wd_airports:
+            wd_airport = json.loads(airport_json)
 
-                wd_qid: str = wd_airport["item"]["value"].removeprefix("http://www.wikidata.org/entity/")
+            wd_qid: str = wd_airport["item"]["value"].removeprefix("http://www.wikidata.org/entity/")
 
-                wd_icao = wd_airport.get("icao", None)
-                wd_icao_val: str | None = wd_icao["value"] if wd_icao else None
+            wd_icao = wd_airport.get("icao", None)
+            wd_icao_val: str | None = wd_icao["value"] if wd_icao else None
 
-                wd_iata = wd_airport.get("iata", None)
-                wd_iata_val: str | None = wd_iata["value"] if wd_iata else None
+            wd_iata = wd_airport.get("iata", None)
+            wd_iata_val: str | None = wd_iata["value"] if wd_iata else None
 
-                wd_coords = wd_airport.get("coords", None)
-                wd_coords_tuple: tuple[float, float] | None = None
-                if wd_coords:
-                    wd_coords_val: str = wd_coords["value"]
-                    wd_coords_split = wd_coords_val.removeprefix("Point(").removesuffix(")").split(" ")
-                    if type(wd_coords_split) == list and len(wd_coords_split) >= 2:
-                        # Wikidata gives the coordinates longitude-first
-                        wd_coords_tuple = (
-                            float(wd_coords_split[1]),
-                            float(wd_coords_split[0])
-                        )
+            wd_coords = wd_airport.get("coords", None)
+            wd_coords_tuple: tuple[float, float] | None = None
+            if wd_coords:
+                wd_coords_val: str = wd_coords["value"]
+                wd_coords_split = wd_coords_val.removeprefix("Point(").removesuffix(")").split(" ")
+                if type(wd_coords_split) == list and len(wd_coords_split) >= 2:
+                    # Wikidata gives the coordinates longitude-first
+                    wd_coords_tuple = (
+                        float(wd_coords_split[1]),
+                        float(wd_coords_split[0])
+                    )
 
-                airports_resolved.append(Airport(
-                    qid=wd_qid,
-                    icao=wd_icao_val,
-                    wiki_title=stripped_title,
-                    iata=wd_iata_val,
-                    coordinates=wd_coords_tuple
-                ))
-                if verbose:
-                    print(f"Resolved data for {stripped_title}")
+            url: str = wd_airport["article"]["value"]
+            title = unquote(url.removeprefix("https://en.wikipedia.org/wiki/")).replace("_", " ").strip()
 
-            except Exception as e:
-                # raise(e)
-                print(f"Warning: Unable to find Wikidata info for article {stripped_title}. Skipping article.")
-                if verbose:
-                    print(type(e), e)
+            airports_resolved.append(Airport(
+                qid=wd_qid,
+                icao=wd_icao_val,
+                wiki_title=title,
+                iata=wd_iata_val,
+                coordinates=wd_coords_tuple
+            ))
+            if verbose:
+                print(f"Resolved data for {title}")
+
 
     return airports_resolved
+
+
+
+
+def check_wd_completeness(
+    wd_path: str | os.PathLike[str],
+    apdl_titles_path: str | os.PathLike[str]
+) -> list[str]:
+    """
+    Return a list of titles of Wikipedia articles with airport destination lists for which
+    corresponding Wikidata entries are not found
+    """
+    # Load Wikidata data into a Wikipedia title-indexed dict for faster retrieval
+    wd_dict = _load_wd_airports_jsonl(wd_path)
+    wd_not_found = []
+
+    with open(apdl_titles_path) as titles:
+        for title in titles:
+            title_stripped = title.strip()
+            try:
+                wd_dict[title_stripped]
+            except:
+                wd_not_found.append(title_stripped)
+
+    return wd_not_found
+
 
 
 
@@ -122,10 +135,15 @@ def resolve_routes(
         origin_title = route.origin
 
         # Resolve the canonical destination redirect title, if applicable
-        destination_title = redirects_table.get(route.destination, route.destination)
-        # Normalize destination title - replace underscore with space, remove multiple spaces
+
+        destination_title = route.destination
+        # Normalize destination title - replace underscore with space, remove multiple spaces,
+        # capitalize first letter
         destination_title = re.sub(r"\_", " ", destination_title)
         destination_title = re.sub(r" +", " ", destination_title)
+        destination_title = destination_title[:1].upper() + destination_title[1:]
+
+        destination_title = redirects_table.get(destination_title, destination_title)
 
         # Resolve Wikidata QIDs
         try:
