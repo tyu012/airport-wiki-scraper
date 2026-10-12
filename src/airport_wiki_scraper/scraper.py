@@ -184,23 +184,22 @@ def queue_fetch_redirects(
     Returns a list of dicts, each with the keys `"from"` and `"to"` which indicate the origin and
     destination of the redirect.
     """
-    params = {
-            "action": "query",
-            "prop": "redirects",
-            "format": "json",
-            "formatversion": 2,
-            "rdlimit": 500,
-            "rdnamespace": 0
-        }
+
     redirects = []
     titles_processed = [title.strip() for title in titles]
 
-    # Add each title to itself
-    for page_title in titles_processed:
-        redirects.append({ "from": page_title, "to": page_title })
-
     for lower_bound in range(0, len(titles_processed), 50):
+        # Re-specify params before each new set of articles to prevent rdcontinue from carrying over
+        params = {
+                "action": "query",
+                "prop": "redirects",
+                "format": "json",
+                "formatversion": 2,
+                "rdlimit": 500,
+                "rdnamespace": 0
+        }
         params["titles"] = "|".join(titles_processed[lower_bound:lower_bound + 50])
+
         # Has 50 articles - make an API call.
         # Repeat until there are no more redirects within the 50 articles.
         while True:
