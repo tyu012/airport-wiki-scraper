@@ -1,6 +1,7 @@
 import re
 from pydantic import BaseModel
 import os
+from urllib.parse import unquote
 
 REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
 REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
@@ -48,3 +49,7 @@ def load_pydantic_jsonl(path: str | os.PathLike[str], model) -> list:
     with open(path, "r") as f:
         values = [model.model_validate_json(line.strip()) for line in f.readlines()]
     return values
+
+
+def normalize_wiki_url(url: str) -> str:
+    return unquote(url.removeprefix("https://en.wikipedia.org/wiki/")).replace("_", " ").strip()

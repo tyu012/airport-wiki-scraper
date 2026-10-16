@@ -3,6 +3,7 @@ import requests
 from time import sleep
 import random
 import os
+from collections.abc import Iterable
 
 API_URL = "https://en.wikipedia.org/w/api.php"
 
@@ -177,7 +178,7 @@ def queue_fetch_articles(
 
 
 def queue_fetch_redirects(
-    titles: list[str], verbose: bool=False
+    titles: Iterable[str], verbose: bool=False
 ) -> list[dict[str, str]]:
     """
     Fetches the articles that redirect to the articles with given titles.

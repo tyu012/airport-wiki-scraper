@@ -24,7 +24,7 @@ uv sync
 - Create a `.env` file in the root directory of this repo and add the following line.
   - **IMPORTANT:** Replace **EMAIL** with your own email.
 ```
-MW_USER_AGENT="AirWikiExplorer/0.1 (EMAIL)"
+MW_USER_AGENT="AirWikiExplorer/0.2.1 (EMAIL)"
 ```
 
 - Run the cells of the Jupyter notebook `notebooks/demo.ipynb`
@@ -59,4 +59,4 @@ Using Python enables rapid prototyping via Jupyter Notebooks and potential integ
 - Cristóbal Gómez, [Aviation Scraper](https://github.com/cristobal-io/aviation-scraper)
   - Also parses HTML
 - Michael Borohovski, [Travel Hacking Toolkit](https://github.com/borski/travel-hacking-toolkit)
-  - Includes an AI agent skill that reads Wikipedia airport destination lists, but LLMs are inefficient for batch data processing.
+  - Includes an AI agent skill that reads Wikipedia airport destination lists, but rules-based parsers are more efficient at large scale.
