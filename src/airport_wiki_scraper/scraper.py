@@ -3,6 +3,7 @@ import requests
 from time import sleep
 import random
 import os
+from collections.abc import Iterable
 
 API_URL = "https://en.wikipedia.org/w/api.php"
 
@@ -177,7 +178,7 @@ def queue_fetch_articles(
 
 
 def queue_fetch_redirects(
-    titles: list[str], verbose: bool=False
+    titles: Iterable[str], verbose: bool=False
 ) -> list[dict[str, str]]:
     """
     Fetches the articles that redirect to the articles with given titles.
@@ -253,30 +254,34 @@ def fetch_apdl_article_titles(verbose: bool=False) -> list[str]:
 
 
 WD_AIRPORT_QUERY = """SELECT
-  ?item ?itemLabel
-  (SAMPLE(?icao_) as ?icao)
-  (SAMPLE(?iata_) as ?iata)
-  (SAMPLE(?article_) as ?article)
-  (SAMPLE(?coords_) as ?coords)
-WHERE
-{
-  VALUES ?other_airports {
-    wd:Q94993988 wd:Q62447 wd:Q695850 wd:Q131520524 wd:Q3143713 wd:Q2516330 wd:Q502074 wd:Q2301048 wd:Q7373622
+  ?item
+  (SAMPLE(?icao_) AS ?icao)
+  (SAMPLE(?iata_) AS ?iata)
+  (SAMPLE(?article_) AS ?article)
+  (SAMPLE(?coords_) AS ?coords)
+WHERE {
+  {
+    SELECT DISTINCT ?item ?article_ WHERE {
+      ?article_ schema:about ?item;
+                schema:isPartOf <https://en.wikipedia.org/>.
+      {
+        ?item wdt:P31/wdt:P279* wd:Q1248784.
+      }
+      UNION
+      {
+        VALUES ?other_airports {
+          wd:Q94993988 wd:Q62447 wd:Q695850 wd:Q131520524 wd:Q3143713
+          wd:Q2516330 wd:Q502074 wd:Q2301048 wd:Q7373622
+        }
+        ?item wdt:P31 ?other_airports.
+      }
+    }
   }
-  
-  { ?item wdt:P31/wdt:P279* wd:Q1248784 }
-  UNION
-  { ?item wdt:P31 ?other_airports }
-  
-  ?article_ schema:about ?item.
-  ?article_ schema:isPartOf <https://en.wikipedia.org/>.
   OPTIONAL { ?item wdt:P239 ?icao_. }
   OPTIONAL { ?item wdt:P238 ?iata_. }
   OPTIONAL { ?item wdt:P625 ?coords_. }
-
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
-GROUP BY ?item ?itemLabel"""
+GROUP BY ?item"""
 
 WD_SPARQL_API_URL = "https://query.wikidata.org/bigdata/namespace/wdq/sparql"
 
