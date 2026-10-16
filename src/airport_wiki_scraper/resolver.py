@@ -1,7 +1,7 @@
 from airport_wiki_scraper.airport_scraper import parse_airport_infobox
 from airport_wiki_scraper.airport import Airport
 from airport_wiki_scraper.airroute import AirRoute, AirRouteID
-from airport_wiki_scraper.utils import load_pydantic_jsonl
+from airport_wiki_scraper.utils import load_pydantic_jsonl, normalize_wiki_url
 from urllib.parse import unquote
 import os
 import json
@@ -47,7 +47,7 @@ def extract_airport_data(
                     )
 
             url: str = wd_airport["article"]["value"]
-            title = unquote(url.removeprefix("https://en.wikipedia.org/wiki/")).replace("_", " ").strip()
+            title = normalize_wiki_url(url)
 
             airports_resolved.append(Airport(
                 qid=wd_qid,
