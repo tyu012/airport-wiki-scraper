@@ -26,7 +26,7 @@ uv sync
   - **IMPORTANT:** Replace **EMAIL** with your own email.
   - Replace the database environment variables with your Postgres database information.
 ```
-MW_USER_AGENT="AirWikiExplorer/0.2.1 (EMAIL)"
+MW_USER_AGENT="AirWikiExplorer/0.3 (EMAIL)"
 POSTGRES_DB=[Postgres database name]
 POSTGRES_USER=[Postgres username]
 POSTGRES_PASSWORD=[Postgres password]
