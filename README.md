@@ -1,12 +1,13 @@
 # AirWikiExplorer
 
-A Python-based Wikipedia data pipeline that parses "Airports and Destinations" tables (more precisely, `Airport destination list` templates).
+A Python-based Wikipedia ETL pipeline that parses "Airports and Destinations" tables (more precisely, `Airport destination list` templates).
 
 # Features
 
 - Parses airport destination lists from wikitext of more than **4,500** Wikipedia articles
 - Retrieves over **100,000** passenger air routes consisting of origin, destination, airline, and other attributes (seasonal, charter, suspended, start/end/resume dates)
 - Resolves 99.3% of origin and destination airports of air routes to Wikidata entries.
+- Loads resolved data to a PostgreSQL database
 - Calls MediaWiki Action API to obtain Wikipedia articles, respecting Wikimedia Foundation rate limits
 - Uses a SPARQL query to fetch airport data from Wikidata, maximizing coverage of articles with airport destination lists
 - Robustly handles edge cases when parsing
@@ -21,13 +22,23 @@ A Python-based Wikipedia data pipeline that parses "Airports and Destinations" t
 uv sync
 ```
 
-- Create a `.env` file in the root directory of this repo and add the following line.
+- Create a `.env` file in the root directory of this repo and add the following lines
   - **IMPORTANT:** Replace **EMAIL** with your own email.
+  - Replace the database environment variables with your Postgres database information.
 ```
 MW_USER_AGENT="AirWikiExplorer/0.2.1 (EMAIL)"
+POSTGRES_DB=[Postgres database name]
+POSTGRES_USER=[Postgres username]
+POSTGRES_PASSWORD=[Postgres password]
+DB_HOST=[Postgres database host]
+DB_PORT=[Postgres database port]
 ```
 
-- Run the cells of the Jupyter notebook `notebooks/demo.ipynb`
+- Run the cells of the Jupyter notebook `notebooks/demo.ipynb` to fetch, extract, and transform the data.
+
+- Run `docker compose up` to start the PostgreSQL database.
+
+- Run the script `uv run airport-wiki-scraper -l` to start the PostgreSQL database.
 
 ## Generated data locations:
 
@@ -40,6 +51,7 @@ The following data will be generated:
 - `data/airports.txt` - List of all Wikipedia articles containing `Airport destination list` templates.
 - `data/airport_redirects.jsonl` - Titles that redirect to any article listed in `data/airports.txt`
 - `data/wd_airports.jsonl` - Data about airports fetched from a Wikidata SPARQL query
+- `postgres_data` - The PostgreSQL database folder.
 
 # Tech stack
 
@@ -51,6 +63,14 @@ The following data will be generated:
 
 Scraping and parsing wikitext instead of HTML (see [Related Works](#related-works)) is more robust and less prone to changes while making template metadata easier to access.
 Using Python enables rapid prototyping via Jupyter Notebooks and potential integration with data analysis libraries.
+
+## Generative AI information
+
+Large language model (LLM) tools have been used in this project.
+Agentic tools were used to debug edge cases by analyzing outputs.
+Chatbots were used for researching technologies and generating usage examples of libraries I use.
+The vast majority of code was written by myself, except for the ref tag stripping and table alignment detection code.
+I verify, understand, and edit (when necessary) all LLM-edited or suggested code.
 
 # Related Works
 
