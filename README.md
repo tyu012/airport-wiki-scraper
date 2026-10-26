@@ -30,11 +30,16 @@ MW_USER_AGENT="AirWikiExplorer/0.3 (EMAIL)"
 POSTGRES_DB=[Postgres database name]
 POSTGRES_USER=[Postgres username]
 POSTGRES_PASSWORD=[Postgres password]
-DB_HOST=[Postgres database host]
-DB_PORT=[Postgres database port]
+DB_HOST=["database" if using Docker Compose, otherwise Postgres database host]
+DB_PORT=[5432 if using Docker Compose, otherwise Postgres database port]
 ```
 
-- Run `docker compose up` to start the PostgreSQL database.
+### With Docker:
+
+- Run `docker compose up` to start both the pipeline and PostgreSQL database.
+- Run `docker compose up database` to only run the PostgreSQL database after loading data
+
+### Without Docker:
 
 - Run the script `uv run airport-wiki-scraper -frl` to start the PostgreSQL database.
   - The stages can be performed individually:
