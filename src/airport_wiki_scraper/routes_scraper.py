@@ -138,28 +138,28 @@ def interpret_dests(
             _apply_air_route_prop(
                 structured_dests,
                 "resumes",
-                parse_date(lowertext, iterator),
+                parse_date(lowertext, iterator, verbose),
                 apply_all)
 
         elif "begin" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "begins",
-                parse_date(lowertext, iterator),
+                parse_date(lowertext, iterator, verbose),
                 apply_all)
 
         elif "resume" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "resumes",
-                parse_date(lowertext, iterator),
+                parse_date(lowertext, iterator, verbose),
                 apply_all)
 
         elif "ends" in lowertext or "ending" in lowertext or "both end" in lowertext or "all end" in lowertext:
             _apply_air_route_prop(
                 structured_dests,
                 "ends",
-                parse_date(lowertext, iterator),
+                parse_date(lowertext, iterator, verbose),
                 apply_all)
 
         elif isinstance(node, mwp.nodes.Template):
@@ -198,7 +198,8 @@ def _apply_air_route_prop(values: list[AirRoute], prop: str, value, apply_all: b
 
 def parse_date(
     current_node_text: str,
-    filtered_dests: peekable[mwp.nodes.Node]
+    filtered_dests: peekable[mwp.nodes.Node],
+    verbose: bool=False
 ) -> dt.datetime | None:
     """
     Parses dates in a peekable iterator of wikitext nodes given in the order of filter_apdl_lists.
@@ -221,7 +222,8 @@ def parse_date(
             date = dparser.parse(next_node, fuzzy=True)
             filtered_dests.__next__()
         except:
-            print(f"Unable to find expected date. Note: Suspended flights may not have resume date.")
+            if verbose:
+                print(f"Unable to find expected date. Note: Suspended flights may not have resume date.")
     return date
 
 
@@ -351,7 +353,8 @@ def extract_apdl(apdl_template: mwp.nodes.Template, origin: str = "", verbose: b
         # we only need to check if len(row) < 2.
         if len(row) < 2 or not _could_be_airline(row[0]):
             cells = [str(param.value).strip() for param in row]
-            print(f"Warning: skipping misaligned row for '{origin}': {cells}")
+            if verbose:
+                print(f"Warning: skipping misaligned row for '{origin}': {cells}")
             continue
 
         # First column contains the airline

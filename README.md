@@ -34,11 +34,14 @@ DB_HOST=[Postgres database host]
 DB_PORT=[Postgres database port]
 ```
 
-- Run the cells of the Jupyter notebook `notebooks/demo.ipynb` to fetch, extract, and transform the data.
-
 - Run `docker compose up` to start the PostgreSQL database.
 
-- Run the script `uv run airport-wiki-scraper -l` to start the PostgreSQL database.
+- Run the script `uv run airport-wiki-scraper -frl` to start the PostgreSQL database.
+  - The stages can be performed individually:
+    - The flag `-f` fetches data from Wikipedia and Wikidata's APIs.
+    This process could take about 5 minutes to respect Wikimedia Foundation rate limits.
+    - The flag `-r` extracts and resolves the raw data that was fetched.
+    - The flag `-l` loads the full dataset to the Postgres database specified in the `.env` file.
 
 ## Generated data locations:
 
