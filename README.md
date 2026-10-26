@@ -17,11 +17,6 @@ A Python-based Wikipedia ETL pipeline that parses "Airports and Destinations" ta
 
 ## Obtain data
 
-- Install dependencies
-```
-uv sync
-```
-
 - Create a `.env` file in the root directory of this repo and add the following lines
   - **IMPORTANT:** Replace **EMAIL** with your own email.
   - Replace the database environment variables with your Postgres database information.
@@ -40,6 +35,11 @@ DB_PORT=[5432 if using Docker Compose, otherwise Postgres database port]
 - Run `docker compose up database` to only run the PostgreSQL database after loading data
 
 ### Without Docker:
+
+- Install dependencies
+```
+uv sync
+```
 
 - Run the script `uv run airport-wiki-scraper -frl` to start the PostgreSQL database.
   - The stages can be performed individually:
