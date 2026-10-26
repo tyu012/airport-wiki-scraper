@@ -7,7 +7,7 @@ REF_PAIRED_RE = re.compile(r"<ref\b[^>]*>.*?</ref>", re.IGNORECASE | re.DOTALL)
 REF_SELF_CLOSING_RE = re.compile(r"<ref\b[^<>]*?/\s*>", re.IGNORECASE)
 REF_MALFORMED_RE = re.compile(r"<ref\b[^<>]*?/\s*(?=<|$)", re.IGNORECASE)
 
-def strip_ref_tags(text: str, origin: str = "") -> str:
+def strip_ref_tags(text: str, origin: str = "", verbose: bool = False) -> str:
     """
     Removes <ref> tags from wikitext before it is parsed as a template.
 
@@ -17,7 +17,7 @@ def strip_ref_tags(text: str, origin: str = "") -> str:
     as warnings since they are likely editing errors worth fixing on Wikipedia.
     """
     malformed = REF_MALFORMED_RE.findall(text)
-    if malformed:
+    if malformed and verbose:
         print(f"Warning: malformed ref tag(s) for '{origin}': {malformed}")
     # Self-closing refs must be removed before paired refs, otherwise a self-closing tag such as
     # `<ref name=x/>` is mistaken for an opening tag and swallows content up to the next `</ref>`.

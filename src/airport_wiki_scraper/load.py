@@ -36,6 +36,8 @@ def load_to_db():
 
             airroutes = load_pydantic_jsonl("data/structured/airroutesid.jsonl", AirRouteID)
             load_airroutes(cur, airroutes)
+
+    print("Done.")
             
 
 

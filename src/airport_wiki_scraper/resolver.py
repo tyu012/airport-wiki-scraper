@@ -156,7 +156,8 @@ def resolve_routes(
                 "destination_qid": destination_qid
             }))
         except:
-            print(f"Warning: unable to get QIDs for route {origin_title} -> {destination_title}. Skipping.")
+            if verbose:
+                print(f"Warning: unable to get QIDs for route {origin_title} -> {destination_title}. Skipping.")
 
     return resolved_air_routes
 

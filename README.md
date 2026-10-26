@@ -17,11 +17,6 @@ A Python-based Wikipedia ETL pipeline that parses "Airports and Destinations" ta
 
 ## Obtain data
 
-- Install dependencies
-```
-uv sync
-```
-
 - Create a `.env` file in the root directory of this repo and add the following lines
   - **IMPORTANT:** Replace **EMAIL** with your own email.
   - Replace the database environment variables with your Postgres database information.
@@ -30,15 +25,28 @@ MW_USER_AGENT="AirWikiExplorer/0.3 (EMAIL)"
 POSTGRES_DB=[Postgres database name]
 POSTGRES_USER=[Postgres username]
 POSTGRES_PASSWORD=[Postgres password]
-DB_HOST=[Postgres database host]
-DB_PORT=[Postgres database port]
+DB_HOST=["database" if using Docker Compose, otherwise Postgres database host]
+DB_PORT=[5432 if using Docker Compose, otherwise Postgres database port]
 ```
 
-- Run the cells of the Jupyter notebook `notebooks/demo.ipynb` to fetch, extract, and transform the data.
+### With Docker:
 
-- Run `docker compose up` to start the PostgreSQL database.
+- Run `docker compose up` to start both the pipeline and PostgreSQL database.
+- Run `docker compose up database` to only run the PostgreSQL database after loading data
 
-- Run the script `uv run airport-wiki-scraper -l` to start the PostgreSQL database.
+### Without Docker:
+
+- Install dependencies
+```
+uv sync
+```
+
+- Run the script `uv run airport-wiki-scraper -frl` to start the PostgreSQL database.
+  - The stages can be performed individually:
+    - The flag `-f` fetches data from Wikipedia and Wikidata's APIs.
+    This process could take about 5 minutes to respect Wikimedia Foundation rate limits.
+    - The flag `-r` extracts and resolves the raw data that was fetched.
+    - The flag `-l` loads the full dataset to the Postgres database specified in the `.env` file.
 
 ## Generated data locations:
 
